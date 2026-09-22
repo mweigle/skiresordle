@@ -2,6 +2,16 @@ import { FetchResult, getLiftsForResort, insertLiftsForResort, insertResorts } f
 
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 
+function queryApi(overpassQuery: string) {
+    return fetch(OVERPASS_API, {
+        method: "POST",
+        body: "data=" + encodeURIComponent(overpassQuery),
+        headers: {
+            "User-Agent": "Skiresordle"
+        }
+    });
+}
+
 async function fetchResortLifts(resortName: string) {
     const overpassQuery =
         `[out:json][timeout:25];
@@ -23,13 +33,10 @@ async function fetchResortLifts(resortName: string) {
 
 out geom;
  `
-    const result = await fetch(OVERPASS_API, {
-        method: "POST",
-        body: "data=" + encodeURIComponent(overpassQuery),
-        headers: {
-            "User-Agent": "Skiresordle"
-        }
-    });
+    const result = await queryApi(overpassQuery);
+    if (!result.ok) {
+        throw new Error(`Overpass API error -- status: ${result.status}, msg: ${result.statusText}`);
+    }
     const overpassJson = await result.json();
     const geoJson = overpassJsonToGeoJson(overpassJson);
     return geoJson;
@@ -77,19 +84,13 @@ export async function loadOrFetchLifts(resortName: string) {
 
 export async function fetchResortNames(): Promise<number> {
     const overpassQuery = `[out:json][timeout:25]; area["landuse"="winter_sports"]; out tags;`
-    const result = await fetch(OVERPASS_API, {
-        method: "POST",
-        body: "data=" + encodeURIComponent(overpassQuery),
-        headers: {
-            "User-Agent": "Skiresordle",
-        }
-    });
 
+    const result = await queryApi(overpassQuery);
     if (!result.ok) {
         throw new Error(`Overpass API error -- status: ${result.status}, msg: ${result.statusText}`);
     }
     const resorts = await result.json();
-    
+
     // resorts must have a "name" tag; if the "sport" tag is set, then it must include "skiing"
     const skiResorts = resorts.elements.filter(({ tags }) => tags.name && (!tags.sport || tags.sport.includes("skiing")));
     insertResorts(skiResorts);

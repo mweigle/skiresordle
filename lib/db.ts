@@ -1,7 +1,7 @@
-import Database from 'better-sqlite3';
+import Database from "better-sqlite3";
 
-const db = new Database('./data.db');
-db.pragma('journal_mode = WAL');
+const db = new Database("./data.db");
+db.pragma("journal_mode = WAL");
 
 // create table
 db.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT)");

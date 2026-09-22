@@ -12,6 +12,25 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --animate-shake: shake 0.2s ease-in-out infinite;
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    25% {
+      transform: translateX(-5px);
+    }
+
+    75% {
+      transform: translateX(5px);
+    }
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

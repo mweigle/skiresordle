@@ -1,17 +1,19 @@
 "use client"
 
 import Fuse from "fuse.js";
-import { MapBrowserEvent, View } from "ol";
+import MapBrowserEvent from "ol/MapBrowserEvent";
 import { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import Map from "ol/Map";
-import { OSM } from "ol/source";
+import "ol/ol.css";
+import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
+import SidePanel from "./side_panel";
 
 enum LiftStatus {
   Inactive,
@@ -19,25 +21,51 @@ enum LiftStatus {
   Correct,
 }
 
-interface Lift {
+export interface Lift {
   id: number;
   name: string;
   alt_name?: string;
   aerialway?: string;
+  railway?: string;
 }
 
 const STATUS = "status";
+const MAX_NAME_DISTANCE = 2;
+
+// WARNING: AI slop
+function editDistance(first: string, second: string) {
+  const left = first.trim().toLowerCase();
+  const right = second.trim().toLowerCase();
+  // array counting from zero to right.length
+  const distances = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let row = 1; row <= left.length; row++) {
+    let diagonal = distances[0];
+    distances[0] = row;
+
+    for (let column = 1; column <= right.length; column++) {
+      const above = distances[column];
+      distances[column] = left[row - 1] === right[column - 1]
+        ? diagonal
+        : Math.min(diagonal, above, distances[column - 1]) + 1;
+      diagonal = above;
+    }
+  }
+
+  return distances[right.length];
+}
 
 export default function Game({ resortGeoJson }) {
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const liftTable = useRef<Lift[]>([]);
-  const search = useRef<Fuse<Lift> | null>(null);
   const hoveredFeatureRef = useRef<FeatureLike | null>(null);
+  const search = useRef<Fuse<Lift> | null>(null);
 
   const [liftName, setLiftName] = useState("");
-  const [discoveredLifts, setDiscoveredLifts] = useState<string[]>([]);
-  const [nLifts, setNLifts] = useState(0);
+  const [discoveredLifts, setDiscoveredLifts] = useState<Lift[]>([]);
+
+  const [incorrectGuess, setIncorrectGuess] = useState(false);
+  const [alreadyFound, setAlreadyFound] = useState(false);
 
   function submitLiftName(e: KeyboardEvent) {
     if (e.code !== "Enter") {
@@ -49,11 +77,14 @@ export default function Game({ resortGeoJson }) {
       return;
     }
 
-    const searchResult = fuse.search(liftName);
-    const item = searchResult[0]?.item;
+    const query = liftName.trim();
+    const lift = fuse.search(query).find(({ item }) =>
+      [item.name, item.alt_name].some(name => name && editDistance(query, name) <= MAX_NAME_DISTANCE)
+    )?.item;
 
-    if (!item) {
-      // TODO: play a shaky animation ;)
+    if (!lift) {
+      setIncorrectGuess(true);
+      setTimeout(() => setIncorrectGuess(false), 500);
       return;
     }
 
@@ -62,34 +93,42 @@ export default function Game({ resortGeoJson }) {
       return;
     }
 
-    const feature = source.getFeatureById(item.id);
+    const feature = source.getFeatureById(lift.id);
     if (!feature) {
-      console.error("Could not find feature:", item.id);
+      console.error("Could not find feature:", lift.id);
       return;
     }
 
     if (feature.get(STATUS) === LiftStatus.Correct) {
-      // TODO: show info that the lift is already discovered
       setLiftName("");
+      setAlreadyFound(true);
+      setTimeout(() => setAlreadyFound(false), 2000);
       return;
     }
 
     feature.set(STATUS, LiftStatus.Correct);
-
-    const geometry = feature.getGeometry();
-    if (geometry) {
-      mapRef.current?.getView().fit(geometry.getExtent(), {
+    if (discoveredLifts.length + 1 >= resortGeoJson.features.length) {
+      // all lifts have been found, focus the entire map
+      // TODO: more fanfare!
+      const map = mapRef.current!;
+      map.getView().fit(source.getExtent()!, {
         padding: [200, 200, 200, 200],
         duration: 500,
-        maxZoom: 16,
+        maxZoom: 14,
       });
+    } else {
+      const geometry = feature.getGeometry();
+      if (geometry) {
+        mapRef.current?.getView().fit(geometry.getExtent(), {
+          padding: [200, 200, 200, 200],
+          duration: 500,
+          maxZoom: 16,
+        });
+      }
     }
-    const displayString = item.alt_name
-      ? `${item.name}/${item.alt_name} (${item.aerialway})`
-      : `${item.name} (${item.aerialway})`;
-    setDiscoveredLifts(prev => [displayString, ...prev]);
+
+    setDiscoveredLifts(prev => [lift, ...prev]);
     setLiftName("");
-    // TODO: center the map on the discovered lift!
   }
 
   useEffect(() => {
@@ -111,7 +150,7 @@ export default function Game({ resortGeoJson }) {
     const hoveredStyle = new Style({
       stroke: new Stroke({
         color: "#3498db",
-        width: 6,
+        width: 5,
       }),
     });
 
@@ -131,17 +170,14 @@ export default function Game({ resortGeoJson }) {
       ...feature.properties,
       id: feature.id,
     })) || [];
-    setDiscoveredLifts([]);
-    setNLifts(lifts.length);
+    // setDiscoveredLifts([]);
 
+    // TODO: questionable if we even need fuse anymore
     const fuse = new Fuse<Lift>(lifts, {
       keys: ["name", "alt_name"],
-      includeScore: true,
-      distance: 0,
-      threshold: 0.2,
+      threshold: 1,
     });
 
-    liftTable.current = lifts;
     search.current = fuse;
 
     const liftSource = new VectorSource({
@@ -162,10 +198,6 @@ export default function Game({ resortGeoJson }) {
         }),
         liftLayer,
       ],
-      view: new View({
-        center: [0, 0],
-        zoom: 2,
-      }),
     });
 
     olMap.getView().fit(liftSource.getExtent()!, {
@@ -203,9 +235,6 @@ export default function Game({ resortGeoJson }) {
 
       // Mouse entered new lift
       if (feature) {
-        // console.log("Hovered:", feature.get("name"));
-        // console.log("Status:", feature.get(STATUS));
-
         if (feature.get(STATUS) !== LiftStatus.Correct) {
           feature.set(STATUS, LiftStatus.Hovered);
         }
@@ -236,12 +265,12 @@ export default function Game({ resortGeoJson }) {
   return <>
     <div id="map" className="absolute inset-0 z-1"></div>
     <main className="grid grid-cols-4">
-      <input type="text" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
-        className="mt-10 p-3 z-2 bg-white text-black col-start-2 col-span-2 outline-none rounded-md border-solid border-2 border-blue-200" />
-      <div className="mt-10 p-3 bg-white text-black rounded-full z-2 col-start-4">{discoveredLifts.length}/{nLifts}</div>
-      <ul className="row-start-2 col-start-4 z-2 p-3 text-black">
-        {discoveredLifts.map(lift => <li key={lift}>{lift}</li>)}
-      </ul>
+      <input name="Lift Name" type="text" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
+        className={`mt-10 p-3 z-2 bg-white text-black col-start-2 col-span-2 outline-none rounded-md border-solid border-2
+        ${incorrectGuess ? "animate-shake border-red-400" : "border-blue-200"}`} />
+      <span className={`z-2 my-2 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
+        justify-center rounded bg-green-400 text-black transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
+      <SidePanel nLifts={resortGeoJson.features.length} discovered={discoveredLifts} />
     </main>
   </>;
 }
