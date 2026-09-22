@@ -1,4 +1,4 @@
-import { FetchResult, getLiftsForResort, insertLiftsForResort, insertResorts } from "./db";
+import { LoadResult, getLiftsForResort, getResorts, insertLiftsForResort, insertResorts } from "./db";
 
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 
@@ -64,13 +64,13 @@ function overpassJsonToGeoJson(overpassJson) {
 export async function loadOrFetchLifts(resortName: string) {
     const fetchRes = getLiftsForResort(resortName);
     switch (fetchRes.res) {
-        case FetchResult.GeoJson:
+        case LoadResult.GeoJson:
             return fetchRes.val;
-        case FetchResult.DoesNotExist:
+        case LoadResult.DoesNotExist:
             return undefined;
-        case FetchResult.JsonError:
+        case LoadResult.JsonError:
             throw fetchRes.val;
-        case FetchResult.NotLoaded:
+        case LoadResult.MustFetch:
     }
 
     // console.log("lift data not loaded yet");
@@ -95,4 +95,8 @@ export async function fetchResortNames(): Promise<number> {
     const skiResorts = resorts.elements.filter(({ tags }) => tags.name && (!tags.sport || tags.sport.includes("skiing")));
     insertResorts(skiResorts);
     return skiResorts.length;
+}
+
+export function loadCachedResorts() {
+    return getResorts();
 }

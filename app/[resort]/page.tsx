@@ -13,6 +13,7 @@ export default async function GamePage({ params }: { params: Promise<{ resort: s
   }
 
   if (!geoJson) {
+    // notFound()
     return <div>The resort "{resort}" does not exist</div>
   }
 
