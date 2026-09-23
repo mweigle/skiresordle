@@ -1,5 +1,5 @@
 import DiscoveredLift from "./discovered_lift";
-import { Lift } from "./game";
+import { Lift } from "@/types/types";
 
 interface SidePanelProps {
   nLifts: number,

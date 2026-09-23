@@ -14,19 +14,12 @@ import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
+import { Lift, GeoFeatureList } from "@/types/types";
 
 enum LiftStatus {
   Inactive,
   Hovered,
   Correct,
-}
-
-export interface Lift {
-  id: number;
-  name: string;
-  alt_name?: string;
-  aerialway?: string;
-  railway?: string;
 }
 
 const STATUS = "status";
@@ -55,7 +48,7 @@ function editDistance(first: string, second: string) {
   return distances[right.length];
 }
 
-export default function Game({ resortGeoJson }) {
+export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList }) {
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const hoveredFeatureRef = useRef<FeatureLike | null>(null);
@@ -107,24 +100,21 @@ export default function Game({ resortGeoJson }) {
     }
 
     feature.set(STATUS, LiftStatus.Correct);
+
+    let focusExtent;
     if (discoveredLifts.length + 1 >= resortGeoJson.features.length) {
       // all lifts have been found, focus the entire map
       // TODO: more fanfare!
-      const map = mapRef.current!;
-      map.getView().fit(source.getExtent()!, {
+      focusExtent = source.getExtent();
+    } else {
+      focusExtent = feature.getGeometry()?.getExtent();
+    }
+    if (focusExtent) {
+      mapRef.current?.getView().fit(focusExtent, {
         padding: [200, 200, 200, 200],
         duration: 500,
-        maxZoom: 14,
+        maxZoom: 16,
       });
-    } else {
-      const geometry = feature.getGeometry();
-      if (geometry) {
-        mapRef.current?.getView().fit(geometry.getExtent(), {
-          padding: [200, 200, 200, 200],
-          duration: 500,
-          maxZoom: 16,
-        });
-      }
     }
 
     setDiscoveredLifts(prev => [lift, ...prev]);
@@ -202,7 +192,7 @@ export default function Game({ resortGeoJson }) {
 
     olMap.getView().fit(liftSource.getExtent()!, {
       padding: [200, 200, 200, 200],
-      maxZoom: 14,
+      maxZoom: 16,
     });
 
     function handlePointerMove(event: MapBrowserEvent) {

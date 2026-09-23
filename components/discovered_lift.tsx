@@ -1,4 +1,4 @@
-import { Lift } from "./game";
+import { Lift } from "@/types/types";
 import LiftIcon from "./lift_icon";
 
 export default function DiscoveredLift({ lift }: { lift: Lift }) {
@@ -6,12 +6,11 @@ export default function DiscoveredLift({ lift }: { lift: Lift }) {
   switch (lift.aerialway) {
     case "cable_car":
     case "mixed_lift":
-      // TODO: make an SVG
       break;
     case "gondola":
     case "chair_lift":
     case "drag_lift":
-      // TODO: make an SVG
+    case "magic_carpet":
       liftType = lift.aerialway;
       break;
     case "j-bar":
