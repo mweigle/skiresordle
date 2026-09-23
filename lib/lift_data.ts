@@ -1,4 +1,5 @@
-import { LoadResult, getLiftsForResort, getResorts, insertLiftsForResort, insertResorts } from "./db";
+import { GeoFeatureList, ResortIdent, ResortWithLifts } from "@/types/types";
+import { getLiftsForResortId, getLiftsForResortName, getResorts, insertLiftsForResort, insertResorts } from "./db";
 
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 
@@ -12,12 +13,10 @@ function queryApi(overpassQuery: string) {
     });
 }
 
-async function fetchResortLifts(resortName: string) {
+async function fetchResortLifts(resortId: number): Promise<GeoFeatureList> {
     const overpassQuery =
         `[out:json][timeout:25];
-(
-  way["name"="${resortName}"];
-)->.resort;
+way(${resortId})->.resort;
 (
   way["aerialway"="cable_car"](area.resort);
   way["aerialway"="gondola"](area.resort);
@@ -42,7 +41,7 @@ out geom;
     return geoJson;
 }
 
-function overpassJsonToGeoJson(overpassJson) {
+function overpassJsonToGeoJson(overpassJson): GeoFeatureList {
     const features = overpassJson.elements?.filter(elem => elem.tags?.name).map(elem => ({
         type: "Feature",
         id: elem.id,
@@ -61,28 +60,34 @@ function overpassJsonToGeoJson(overpassJson) {
     return geoJson;
 }
 
-export async function loadOrFetchLifts(resortName: string) {
-    const fetchRes = getLiftsForResort(resortName);
-    switch (fetchRes.res) {
-        case LoadResult.GeoJson:
-            return fetchRes.val;
-        case LoadResult.DoesNotExist:
-            return undefined;
-        case LoadResult.JsonError:
-            throw fetchRes.val;
-        case LoadResult.MustFetch:
+export async function loadOrFetchLifts(resortNameOrId: string | number): Promise<ResortWithLifts | undefined> {
+    const id = Number(resortNameOrId);
+    let resort;
+    if (id) {
+        resort = getLiftsForResortId(id);
+    } else {
+        resort = getLiftsForResortName(resortNameOrId as string);
+    }
+
+    if (!resort) {
+        return undefined; // a resort with this name/id does not exist
+    }
+
+    if (resort.lifts) {
+        return resort; // the resort exists and the lifts were already loaded
     }
 
     // console.log("lift data not loaded yet");
 
-    const lifts = await fetchResortLifts(resortName); // NOTE: this may throw an exception
+    const lifts = await fetchResortLifts(resort.id); // NOTE: this may throw an exception
     // console.log("successfully fetched data");
-    insertLiftsForResort(resortName, lifts);
+    insertLiftsForResort(resort.id, lifts);
+    resort.lifts = lifts;
 
-    return lifts;
+    return resort;
 }
 
-export async function fetchResortNames(): Promise<number> {
+export async function fetchResorts(): Promise<number> {
     const overpassQuery = `[out:json][timeout:25]; area["landuse"="winter_sports"]; out tags;`
 
     const result = await queryApi(overpassQuery);
@@ -97,6 +102,6 @@ export async function fetchResortNames(): Promise<number> {
     return skiResorts.length;
 }
 
-export function loadCachedResorts() {
+export function loadCachedResorts(): ResortIdent[] {
     return getResorts();
 }

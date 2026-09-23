@@ -14,7 +14,7 @@ import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
-import { Lift, GeoFeatureList } from "@/types/types";
+import { Lift, ResortWithLifts } from "@/types/types";
 
 enum LiftStatus {
   Inactive,
@@ -25,7 +25,7 @@ enum LiftStatus {
 const STATUS = "status";
 const MAX_NAME_DISTANCE = 2;
 
-// WARNING: AI slop
+// ------------ WARNING: AI slop
 function editDistance(first: string, second: string) {
   const left = first.trim().toLowerCase();
   const right = second.trim().toLowerCase();
@@ -48,11 +48,34 @@ function editDistance(first: string, second: string) {
   return distances[right.length];
 }
 
-export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList }) {
+function liftNameVariants(name: string) {
+  const normalizedName = name.trim().toLowerCase().replace(/\s+/g, " ");
+  const nameWithoutBahn = normalizedName
+    .replace(/bahn(?=\s|$)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return nameWithoutBahn === normalizedName
+    ? [normalizedName]
+    : [normalizedName, nameWithoutBahn];
+}
+
+function matchesLiftName(query: string, name: string) {
+  return liftNameVariants(name).some(variant =>
+    editDistance(query, variant) <= MAX_NAME_DISTANCE
+  );
+}
+// --------- end AI slop
+
+interface GameProps {
+  resort: ResortWithLifts,
+}
+
+export default function Game({ resort }: GameProps) {
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const hoveredFeatureRef = useRef<FeatureLike | null>(null);
-  const search = useRef<Fuse<Lift> | null>(null);
+  const searchRef = useRef<Fuse<Lift> | null>(null);
 
   const [liftName, setLiftName] = useState("");
   const [discoveredLifts, setDiscoveredLifts] = useState<Lift[]>([]);
@@ -61,18 +84,18 @@ export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList 
   const [alreadyFound, setAlreadyFound] = useState(false);
 
   function submitLiftName(e: KeyboardEvent) {
-    if (e.code !== "Enter") {
+    if (e.code !== "Enter" || !liftName) {
       return;
     }
 
-    const fuse = search.current;
-    if (!fuse) {
+    const search = searchRef.current;
+    if (!search) {
       return;
     }
 
     const query = liftName.trim();
-    const lift = fuse.search(query).find(({ item }) =>
-      [item.name, item.alt_name].some(name => name && editDistance(query, name) <= MAX_NAME_DISTANCE)
+    const lift = search.search(query).find(({ item }) =>
+      [item.name, item.alt_name].some(name => name && matchesLiftName(query, name))
     )?.item;
 
     if (!lift) {
@@ -102,7 +125,7 @@ export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList 
     feature.set(STATUS, LiftStatus.Correct);
 
     let focusExtent;
-    if (discoveredLifts.length + 1 >= resortGeoJson.features.length) {
+    if (discoveredLifts.length + 1 >= resort.lifts.features.length) {
       // all lifts have been found, focus the entire map
       // TODO: more fanfare!
       focusExtent = source.getExtent();
@@ -132,14 +155,14 @@ export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList 
 
     const correctStyle = new Style({
       stroke: new Stroke({
-        color: "#2ecc71",
+        color: "#2ecc71", // color-success
         width: 5,
       }),
     });
 
     const hoveredStyle = new Style({
       stroke: new Stroke({
-        color: "#3498db",
+        color: "#3498db", // color-selection
         width: 5,
       }),
     });
@@ -156,22 +179,21 @@ export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList 
     }
 
     // create a list of features
-    const lifts = resortGeoJson?.features.map(feature => ({
+    const liftList = resort.lifts.features.map(feature => ({
       ...feature.properties,
       id: feature.id,
     })) || [];
     // setDiscoveredLifts([]);
 
-    // TODO: questionable if we even need fuse anymore
-    const fuse = new Fuse<Lift>(lifts, {
+    const search = new Fuse<Lift>(liftList, {
       keys: ["name", "alt_name"],
       threshold: 1,
     });
 
-    search.current = fuse;
+    searchRef.current = search;
 
     const liftSource = new VectorSource({
-      features: new GeoJSON().readFeatures(resortGeoJson, {
+      features: new GeoJSON().readFeatures(resort.lifts, {
         featureProjection: "EPSG:3857",
       }),
     });
@@ -250,17 +272,18 @@ export default function Game({ resortGeoJson }: { resortGeoJson: GeoFeatureList 
       liftLayerRef.current = null;
       hoveredFeatureRef.current = null;
     };
-  }, [resortGeoJson]);
+  }, [resort]);
 
   return <>
     <div id="map" className="absolute inset-0 z-1"></div>
     <main className="grid grid-cols-4">
+      <div className="z-2 mt-10 p-3 w-fit justify-self-center col-start-1 bg-background rounded-full flex items-center justify-center">{resort.name}</div>
       <input name="Lift Name" type="text" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
-        className={`mt-10 p-3 z-2 bg-white text-black col-start-2 col-span-2 outline-none rounded-md border-solid border-2
-        ${incorrectGuess ? "animate-shake border-red-400" : "border-blue-200"}`} />
-      <span className={`z-2 my-2 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
-        justify-center rounded bg-green-400 text-black transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
-      <SidePanel nLifts={resortGeoJson.features.length} discovered={discoveredLifts} />
+        className={`mt-10 p-3 z-2 bg-background col-start-2 col-span-2 outline-none rounded-md border-2
+        ${incorrectGuess ? "animate-shake border-error" : "border-background focus:border-selection"}`} />
+      <span className={`z-2 mt-5 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
+        justify-center rounded-md bg-success transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
+      <SidePanel nLifts={resort.lifts.features.length} discovered={discoveredLifts} />
     </main>
   </>;
 }

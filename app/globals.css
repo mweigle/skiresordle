@@ -3,11 +3,17 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --selection: #3498db;
+  /* --error: color-red-400 */
+  --success: #2ecc71;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-selection: var(--selection);
+  --color-error: var(--color-red-400);
+  --color-success: var(--success);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,21 +28,21 @@
     }
 
     25% {
-      transform: translateX(-5px);
+      transform: translateX(-3px);
     }
 
     75% {
-      transform: translateX(5px);
+      transform: translateX(3px);
     }
   }
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);

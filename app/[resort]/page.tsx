@@ -2,20 +2,20 @@ import Game from "@/components/game";
 import { loadOrFetchLifts } from "@/lib/lift_data";
 
 export default async function GamePage({ params }: { params: Promise<{ resort: string }> }) {
-  let { resort } = await params;
-  resort = decodeURIComponent(resort);
+  const { resort } = await params;
+  const resortNameOrId = decodeURIComponent(resort);
   
-  let geoJson;
+  let resortWithLifts;
   try {
-    geoJson = await loadOrFetchLifts(resort);
+    resortWithLifts = await loadOrFetchLifts(resortNameOrId);
   } catch (e) {
-    return <div>{e.toString()}</div>
+    return <div>{e?.toString()}</div>
   }
 
-  if (!geoJson) {
+  if (!resortWithLifts) {
     // notFound()
-    return <div>The resort "{resort}" does not exist</div>
+    return <div>The resort &quot;{resort}&quot; does not exist</div>
   }
 
-  return <Game resortGeoJson={geoJson} />
+  return <Game resort={resortWithLifts} />
 }

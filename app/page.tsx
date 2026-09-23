@@ -1,13 +1,10 @@
+import ResortSearch from "@/components/resort_search";
 import { loadCachedResorts } from "@/lib/lift_data"
-import Link from "next/link";
 
 export default function Home() {
-  // TODO: "bahn" should be optional
-  // reloading causes issues
-  // remaining icons
+  // TODO: remaining icons
+  // TODO: front page
   const resorts = loadCachedResorts();
 
-  return <ul className="flex flex-col">
-    {resorts.map(resort => <li key={resort.id}><Link href={`/${resort.name}`}>{resort.name}</Link></li>)}
-  </ul>
+  return <ResortSearch resortList={resorts} />
 }

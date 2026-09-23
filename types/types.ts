@@ -1,3 +1,14 @@
+export interface ResortIdent {
+  id: number;
+  name: string;
+}
+
+export interface ResortWithLifts {
+    id: number;
+    name: string;
+    lifts: GeoFeatureList;
+}
+
 export interface Lift {
   id: number;
   name: string;
@@ -7,16 +18,16 @@ export interface Lift {
 }
 
 export interface GeoFeature {
-  type: "Feature",
+  type: string,
   id: number,
-  properties: object,
+  properties: Lift,
   geometry: {
-    type: "LineString"
+    type: string,
     coordinates: Array<[number, number]>,
   },
 }
 
 export interface GeoFeatureList {
-  type: "FeatureList",
+  type: string,
   features: GeoFeature[],
 }

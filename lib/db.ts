@@ -1,3 +1,4 @@
+import { GeoFeatureList, ResortIdent, ResortWithLifts } from "@/types/types";
 import Database from "better-sqlite3";
 
 const db = new Database("./data.db");
@@ -7,49 +8,48 @@ db.pragma("journal_mode = WAL");
 db.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT)");
 
 // prepare statements
-const getResortsStmt = db.prepare("SELECT id, name FROM resorts WHERE lifts IS NOT NULL LIMIT 50"); // TODO: temporary
-const getLiftsStmt = db.prepare("SELECT lifts FROM resorts WHERE name = ?");
-const insertLiftsStmt = db.prepare("UPDATE resorts SET lifts = ? WHERE name = ?");
-const insertResortStmt = db.prepare("INSERT INTO resorts (id, name) VALUES (?, ?)");
+const getResortsStmt = db.prepare<[], ResortIdent>("SELECT id, name FROM resorts WHERE lifts IS NOT NULL LIMIT 50"); // TODO: temporary
+const getLiftsByIdStmt = db.prepare<number, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE id = ?");
+const getLiftsByNameStmt = db.prepare<string, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE name = ?");
+const insertLiftsStmt = db.prepare<[string, number]>("UPDATE resorts SET lifts = ? WHERE id = ?");
+const insertResortStmt = db.prepare<[number, string]>("INSERT INTO resorts (id, name) VALUES (?, ?)");
 const insertResortsTrans = db.transaction(resorts => {
     for (const resort of resorts) {
         insertResortStmt.run(resort.id, resort.tags.name);
     }
 });
 
-export enum LoadResult {
-    DoesNotExist,
-    MustFetch,
-    JsonError,
-    GeoJson,
-}
-
-export function getResorts() {
+export function getResorts(): ResortIdent[] {
     const rows = getResortsStmt.all();
     return rows;
 }
 
-export function getLiftsForResort(name: string): { res: LoadResult, val?: object} {
-    const row = getLiftsStmt.get(name);
-    if (!row) {
-        return { res: LoadResult.DoesNotExist }; // the resort does not exist
-    }
-    if (!row.lifts) {
-        return { res: LoadResult.MustFetch }; // the resort exists but lifts have not been preloaded
-    }
-    try {
-        const geoJson = JSON.parse(row.lifts);
-        return { res: LoadResult.GeoJson, val: geoJson };
-    } catch (e) {
-        return { res: LoadResult.JsonError, val: e as SyntaxError };
-    }
+export function getLiftsForResortName(name: string): ResortWithLifts | undefined {
+    const resort = getLiftsByNameStmt.get(name);
+    return evaluateResort(resort);
 }
 
-export function insertLiftsForResort(name: string, lifts: object) {
+export function getLiftsForResortId(id: number): ResortWithLifts | undefined {
+    const resort = getLiftsByIdStmt.get(id);
+    return evaluateResort(resort);
+}
+
+function evaluateResort(resort: ResortWithLifts | undefined): ResortWithLifts | undefined {
+    if (!resort) {
+        return undefined; // the resort does not exist
+    }
+    if (!resort.lifts) {
+        return resort; // the resort exists but lifts have not been preloaded
+    }
+    resort.lifts = JSON.parse(resort.lifts);
+    return resort;
+}
+
+export function insertLiftsForResort(id: number, lifts: GeoFeatureList) {
     const liftsJson = JSON.stringify(lifts);
-    insertLiftsStmt.run(liftsJson, name);
+    insertLiftsStmt.run(liftsJson, id);
 }
 
-export function insertResorts(resorts: object) {
+export function insertResorts(resorts: object[]) {
     insertResortsTrans(resorts);
 }
