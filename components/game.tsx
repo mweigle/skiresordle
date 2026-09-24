@@ -72,6 +72,7 @@ interface GameProps {
 }
 
 export default function Game({ resort }: GameProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const hoveredFeatureRef = useRef<FeatureLike | null>(null);
@@ -82,6 +83,7 @@ export default function Game({ resort }: GameProps) {
 
   const [incorrectGuess, setIncorrectGuess] = useState(false);
   const [alreadyFound, setAlreadyFound] = useState(false);
+  const [solved, setSolved] = useState(false);
 
   function submitLiftName(e: KeyboardEvent) {
     if (e.code !== "Enter" || !liftName) {
@@ -126,8 +128,8 @@ export default function Game({ resort }: GameProps) {
 
     let focusExtent;
     if (discoveredLifts.length + 1 >= resort.lifts.features.length) {
-      // all lifts have been found, focus the entire map
-      // TODO: more fanfare!
+      setSolved(true);
+      // focus the entire map
       focusExtent = source.getExtent();
     } else {
       focusExtent = feature.getGeometry()?.getExtent();
@@ -146,6 +148,7 @@ export default function Game({ resort }: GameProps) {
 
   useEffect(() => {
     // console.log("init function");
+    inputRef.current?.focus();
     const unknownStyle = new Style({
       stroke: new Stroke({
         color: "#555",
@@ -278,9 +281,12 @@ export default function Game({ resort }: GameProps) {
     <div id="map" className="absolute inset-0 z-1"></div>
     <main className="grid grid-cols-4">
       <div className="z-2 mt-10 p-3 w-fit justify-self-center col-start-1 bg-background rounded-full flex items-center justify-center">{resort.name}</div>
-      <input name="Lift Name" type="text" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
-        className={`mt-10 p-3 z-2 bg-background col-start-2 col-span-2 outline-none rounded-md border-2
-        ${incorrectGuess ? "animate-shake border-error" : "border-background focus:border-selection"}`} />
+      {!solved
+        ? <input ref={inputRef} type="text" name="Lift Name" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
+            className={`mt-10 p-3 z-2 bg-background col-start-2 col-span-2 outline-none rounded-md border-2
+            ${incorrectGuess ? "animate-shake border-error" : "border-background focus:border-selection"}`} />
+        : <span className="z-2 mt-10 h-fit p-3 bg-success col-start-2 col-span-2 flex items-center justify-center rounded-md">You got it!</span>
+      }
       <span className={`z-2 mt-5 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
         justify-center rounded-md bg-success transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
       <SidePanel nLifts={resort.lifts.features.length} discovered={discoveredLifts} />
