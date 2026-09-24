@@ -2,6 +2,8 @@ FROM node:lts-alpine AS base
 
 # Stage 1: Install dependencies
 FROM base AS deps
+# Install Python
+RUN apk add python3 make
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
