@@ -4,6 +4,7 @@ import { getLiftsForResortId, getLiftsForResortName, getResorts, insertLiftsForR
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 
 function queryApi(overpassQuery: string) {
+    console.log("calling overpass API", overpassQuery);
     return fetch(OVERPASS_API, {
         method: "POST",
         body: "data=" + encodeURIComponent(overpassQuery),
@@ -29,7 +30,6 @@ way(${resortId})->.resort;
   way["aerialway"="magic_carpet"](area.resort);
   way["railway"="funicular"](area.resort);
 );
-
 out geom;
  `
     const result = await queryApi(overpassQuery);

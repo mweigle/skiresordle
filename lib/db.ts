@@ -1,7 +1,7 @@
 import { GeoFeatureList, OverpassResort, ResortIdent, ResortWithLifts } from "@/types/types";
 import Database from "better-sqlite3";
 
-const db = new Database("./data.db");
+const db = new Database("./data/data.db");
 db.pragma("journal_mode = WAL");
 
 // create table
