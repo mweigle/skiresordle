@@ -13,8 +13,7 @@ export interface Lift {
   id: number,
   name: string,
   alt_name?: string,
-  aerialway?: string,
-  railway?: string, // TODO: consolidate these into "type" or smth in the transformation set from overpass to geoJson
+  type: string,
 }
 
 export interface GeoFeature {
@@ -30,4 +29,36 @@ export interface GeoFeature {
 export interface GeoFeatureList {
   type: string,
   features: GeoFeature[],
+}
+
+/// from Overpass API
+
+export interface OverpassResorts {
+  elements: OverpassResort[],
+}
+
+export interface OverpassResort {
+  id: number,
+  tags: {
+    name: string,
+    sport?: string,
+  }
+}
+
+export interface OverpassJson {
+    elements: OverpassElement[],
+}
+
+export interface OverpassElement {
+    id: number,
+    tags: OverpassTags,
+    geometry: Array<{ lat: number, lon: number }>,
+}
+
+export interface OverpassTags {
+    id: number,
+    name: string,
+    alt_name?: string,
+    aerialway?: string,
+    railway?: string,
 }

@@ -2,32 +2,17 @@ import { Lift } from "@/types/types";
 import LiftIcon from "./lift_icon";
 
 export default function DiscoveredLift({ lift }: { lift: Lift }) {
-  let liftType = "unknown";
-  switch (lift.aerialway) {
-    case "cable_car":
-    case "mixed_lift":
-      break;
-    case "gondola":
-    case "chair_lift":
-    case "drag_lift":
-    case "magic_carpet":
-      liftType = lift.aerialway;
-      break;
+  let liftType;
+  switch (lift.type) {
     case "j-bar":
     case "t-bar":
     case "platter":
     case "row_tow": // not technically the same thing but...        
       liftType = "drag_lift";
       break;
-    case undefined:
-      if (lift.railway === "funicular") {
-        liftType = lift.railway;
-      } else if (lift.railway) {
-        console.error("weird railway type", lift.railway)
-      }
-      break;
     default:
-      console.error("weird aerialway type", lift.aerialway)
+      liftType = lift.type;
+      break;
   }
 
   let displayName = lift.name;

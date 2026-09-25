@@ -1,4 +1,4 @@
-import { GeoFeatureList, ResortIdent, ResortWithLifts } from "@/types/types";
+import { GeoFeatureList, OverpassResort, ResortIdent, ResortWithLifts } from "@/types/types";
 import Database from "better-sqlite3";
 
 const db = new Database("./data.db");
@@ -18,6 +18,7 @@ const insertResortsTrans = db.transaction(resorts => {
         insertResortStmt.run(resort.id, resort.tags.name);
     }
 });
+const deleteLiftsStmt = db.prepare<number>("UPDATE resorts SET lifts = NULL WHERE id = ?");
 
 export function getResorts(): ResortIdent[] {
     const rows = getResortsStmt.all();
@@ -41,7 +42,7 @@ function evaluateResort(resort: ResortWithLifts | undefined): ResortWithLifts | 
     if (!resort.lifts) {
         return resort; // the resort exists but lifts have not been preloaded
     }
-    resort.lifts = JSON.parse(resort.lifts);
+    resort.lifts = JSON.parse(resort.lifts as unknown as string); // ugly hack to make typescript happy
     return resort;
 }
 
@@ -50,6 +51,10 @@ export function insertLiftsForResort(id: number, lifts: GeoFeatureList) {
     insertLiftsStmt.run(liftsJson, id);
 }
 
-export function insertResorts(resorts: object[]) {
+export function insertResorts(resorts: OverpassResort[]) {
     insertResortsTrans(resorts);
+}
+
+export function deleteLiftsForResort(id: number): number {
+    return deleteLiftsStmt.run(id).changes;
 }

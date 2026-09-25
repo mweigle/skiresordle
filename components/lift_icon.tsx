@@ -1,5 +1,7 @@
 
-const iconPaths = {
+import type { ReactElement } from "react";
+
+const iconPaths: Record<string, ReactElement> = {
   gondola: (<g transform="translate(1.000000,52.000000) scale(0.100000,-0.100000)"
     fill="currentColor" stroke="none">
     <path d="M206 431 c-105 -37 -192 -73 -194 -79 -6 -18 8 -15 129 28 62 22 116

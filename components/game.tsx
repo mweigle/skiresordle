@@ -2,7 +2,7 @@
 
 import Fuse from "fuse.js";
 import MapBrowserEvent from "ol/MapBrowserEvent";
-import { FeatureLike } from "ol/Feature";
+import Feature, { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
@@ -75,7 +75,7 @@ export default function Game({ resort }: GameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const hoveredFeatureRef = useRef<FeatureLike | null>(null);
+  const hoveredFeatureRef = useRef<Feature | null>(null);
   const searchRef = useRef<Fuse<Lift> | null>(null);
 
   const [liftName, setLiftName] = useState("");
@@ -227,7 +227,7 @@ export default function Game({ resort }: GameProps) {
 
       const feature = olMap.forEachFeatureAtPixel(event.pixel, (feature, layer) => {
         if (layer === liftLayer) {
-          return feature;
+          return feature as Feature;
         }
         return undefined;
       },

@@ -1,4 +1,4 @@
-import { GeoFeatureList, ResortIdent, ResortWithLifts } from "@/types/types";
+import { GeoFeature, GeoFeatureList, OverpassJson, OverpassResorts, ResortIdent, ResortWithLifts } from "@/types/types";
 import { getLiftsForResortId, getLiftsForResortName, getResorts, insertLiftsForResort, insertResorts } from "./db";
 
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
@@ -41,23 +41,26 @@ out geom;
     return geoJson;
 }
 
-function overpassJsonToGeoJson(overpassJson): GeoFeatureList {
-    const features = overpassJson.elements?.filter(elem => elem.tags?.name).map(elem => ({
-        type: "Feature",
-        id: elem.id,
-        properties: elem.tags,
-        geometry: {
-            type: "LineString",
-            coordinates: elem.geometry?.map(coord => [coord.lon, coord.lat])
-        },
-    }));
+function overpassJsonToGeoJson(overpassJson: OverpassJson): GeoFeatureList {
+    const features = overpassJson.elements
+        .filter(elem => elem.tags?.name)
+        .map((elem): GeoFeature => ({
+            type: "Feature",
+            id: elem.id,
+            properties: {
+                ...elem.tags,
+                type: elem.tags.aerialway ?? elem.tags.railway ?? "unknown",
+            },
+            geometry: {
+                type: "LineString",
+                coordinates: (elem.geometry ?? []).map(coord => [coord.lon, coord.lat]),
+            },
+        }));
 
-    const geoJson = {
+    return {
         type: "FeatureCollection",
-        features: features,
+        features,
     };
-
-    return geoJson;
 }
 
 export async function loadOrFetchLifts(resortNameOrId: string | number): Promise<ResortWithLifts | undefined> {
@@ -94,7 +97,7 @@ export async function fetchResorts(): Promise<number> {
     if (!result.ok) {
         throw new Error(`Overpass API error -- status: ${result.status}, msg: ${result.statusText}`);
     }
-    const resorts = await result.json();
+    const resorts = await result.json() as OverpassResorts;
 
     // resorts must have a "name" tag; if the "sport" tag is set, then it must include "skiing"
     const skiResorts = resorts.elements.filter(({ tags }) => tags.name && (!tags.sport || tags.sport.includes("skiing")));
