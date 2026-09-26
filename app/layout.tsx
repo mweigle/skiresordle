@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Skiresordle",
-  description: "Guess the Lift Names for your favourite Ski Resort",
+  description: "Guess the Lift Names for your favourite Ski Resort!",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

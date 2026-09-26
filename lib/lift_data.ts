@@ -31,7 +31,7 @@ way(${resortId})->.resort;
   way["railway"="funicular"](area.resort);
 );
 out geom;
- `
+`;
     const result = await queryApi(overpassQuery);
     if (!result.ok) {
         throw new Error(`Overpass API error -- status: ${result.status}, msg: ${result.statusText}`);

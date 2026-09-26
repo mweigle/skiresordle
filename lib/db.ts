@@ -5,9 +5,11 @@ const db = new Database("./data/data.db");
 db.pragma("journal_mode = WAL");
 
 // create table
+// db.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT, n_played INTEGER DEFAULT 0, n_solved INTEGER DEFAULT 0)");
 db.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT)");
 
 // prepare statements
+//const getResortsStmt = db.prepare<[], ResortIdent>("SELECT id, name FROM resorts ORDER BY n_played DESC");
 const getResortsStmt = db.prepare<[], ResortIdent>("SELECT id, name FROM resorts WHERE lifts IS NOT NULL LIMIT 50"); // TODO: temporary
 const getLiftsByIdStmt = db.prepare<number, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE id = ?");
 const getLiftsByNameStmt = db.prepare<string, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE name = ?");

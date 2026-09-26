@@ -15,6 +15,7 @@ import Style from "ol/style/Style";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
 import { Lift, ResortWithLifts } from "@/types/types";
+import { extend } from "ol/extent";
 
 enum LiftStatus {
   Inactive,
@@ -67,6 +68,12 @@ function matchesLiftName(query: string, name: string) {
 }
 // --------- end AI slop
 
+enum GameState {
+  Playing,
+  Solved,
+  GaveUp,
+}
+
 interface GameProps {
   resort: ResortWithLifts,
 }
@@ -83,7 +90,7 @@ export default function Game({ resort }: GameProps) {
 
   const [incorrectGuess, setIncorrectGuess] = useState(false);
   const [alreadyFound, setAlreadyFound] = useState(false);
-  const [solved, setSolved] = useState(false);
+  const [gameState, setGameState] = useState(GameState.Playing);
 
   function submitLiftName(e: KeyboardEvent) {
     if (e.code !== "Enter" || !liftName) {
@@ -96,54 +103,75 @@ export default function Game({ resort }: GameProps) {
     }
 
     const query = liftName.trim();
-    const lift = search.search(query).find(({ item }) =>
-      [item.name, item.alt_name].some(name => name && matchesLiftName(query, name))
-    )?.item;
+    let lifts = search.search(query)
+      .filter(({ item }) =>
+        // check for matching names
+        [item.name, item.alt_name].some(name => name && matchesLiftName(query, name)))
+      .map(({ item }) => item);
 
-    if (!lift) {
+    if (lifts.length === 0) {
       setIncorrectGuess(true);
       setTimeout(() => setIncorrectGuess(false), 500);
       return;
     }
+
+    // filter any that were already discovered
+    lifts = lifts.filter(lift => !discoveredLifts.some(discovered => discovered.id === lift.id));
+      if (lifts.length === 0) {
+        setLiftName("");
+        setAlreadyFound(true);
+        setTimeout(() => setAlreadyFound(false), 2000);
+        return;
+      }
 
     const source = liftLayerRef.current?.getSource();
     if (!source) {
       return;
     }
 
-    const feature = source.getFeatureById(lift.id);
-    if (!feature) {
-      console.error("Could not find feature:", lift.id);
-      return;
-    }
-
-    if (feature.get(STATUS) === LiftStatus.Correct) {
-      setLiftName("");
-      setAlreadyFound(true);
-      setTimeout(() => setAlreadyFound(false), 2000);
-      return;
-    }
-
-    feature.set(STATUS, LiftStatus.Correct);
-
+    // mark all the features that comprise this lift
     let focusExtent;
-    if (discoveredLifts.length + 1 >= resort.lifts.features.length) {
-      setSolved(true);
+    for (const lift of lifts) {
+      const feature = source.getFeatureById(lift.id);
+      if (!feature) {
+        console.error("Could not find feature:", lift.id);
+        continue;
+      }
+
+      feature.set(STATUS, LiftStatus.Correct);
+
+      const extent = feature.getGeometry()?.getExtent();
+      if (extent && focusExtent) {
+        extend(focusExtent, extent);
+      } else {
+        focusExtent = extent;
+      }
+    }
+
+    if (discoveredLifts.length + lifts.length >= resort.lifts.features.length) {
+      setGameState(GameState.Solved);
       // focus the entire map
       focusExtent = source.getExtent();
-    } else {
-      focusExtent = feature.getGeometry()?.getExtent();
     }
     if (focusExtent) {
       mapRef.current?.getView().fit(focusExtent, {
         padding: [200, 200, 200, 200],
         duration: 500,
-        maxZoom: 16,
+        maxZoom: 14,
       });
     }
 
-    setDiscoveredLifts(prev => [lift, ...prev]);
+    setDiscoveredLifts(prev => [...lifts, ...prev]);
     setLiftName("");
+  }
+
+  // TODO: probably for debugging only
+  function revealRest() {
+    setDiscoveredLifts(resort.lifts.features.map(feature => ({
+      ...feature.properties,
+      id: feature.id,
+    })) || []);
+    setGameState(GameState.GaveUp);
   }
 
   useEffect(() => {
@@ -190,7 +218,7 @@ export default function Game({ resort }: GameProps) {
 
     const search = new Fuse<Lift>(liftList, {
       keys: ["name", "alt_name"],
-      threshold: 1,
+      threshold: 1, // TODO: this may be pointless with the new filtering logic
     });
 
     searchRef.current = search;
@@ -217,7 +245,7 @@ export default function Game({ resort }: GameProps) {
 
     olMap.getView().fit(liftSource.getExtent()!, {
       padding: [200, 200, 200, 200],
-      maxZoom: 16,
+      maxZoom: 14,
     });
 
     function handlePointerMove(event: MapBrowserEvent) {
@@ -281,15 +309,17 @@ export default function Game({ resort }: GameProps) {
     <div id="map" className="absolute inset-0 z-1"></div>
     <main className="grid grid-cols-4">
       <div className="z-2 mt-10 p-3 w-fit justify-self-center col-start-1 bg-background rounded-full flex items-center justify-center">{resort.name}</div>
-      {!solved
+      {gameState === GameState.Playing
         ? <input ref={inputRef} type="text" name="Lift Name" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
-            className={`mt-10 p-3 z-2 bg-background col-start-2 col-span-2 outline-none rounded-md border-2
+          className={`mt-10 p-3 z-2 bg-background col-start-2 col-span-2 outline-none rounded-md border-2
             ${incorrectGuess ? "animate-shake border-error" : "border-background focus:border-selection"}`} />
+        // : gameState === GameState.Solved
         : <span className="z-2 mt-10 h-fit p-3 bg-success col-start-2 col-span-2 flex items-center justify-center rounded-md">You got it!</span>
+        // : <span className="z-2 mt-10 h-fit p-3 bg-error col-start-2 col-span-2 flex items-center justify-center rounded-md">Found X/X</span>
       }
       <span className={`z-2 mt-5 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
         justify-center rounded-md bg-success transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
-      <SidePanel nLifts={resort.lifts.features.length} discovered={discoveredLifts} />
+      <SidePanel nLifts={resort.lifts.features.length} discovered={discoveredLifts} revealAll={revealRest} />
     </main>
   </>;
 }
