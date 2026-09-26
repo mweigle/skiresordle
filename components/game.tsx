@@ -16,6 +16,7 @@ import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
 import { Lift, ResortWithLifts } from "@/types/types";
 import { extend } from "ol/extent";
+import { action_markSolved } from "@/lib/actions";
 
 enum LiftStatus {
   Inactive,
@@ -117,12 +118,12 @@ export default function Game({ resort }: GameProps) {
 
     // filter any that were already discovered
     lifts = lifts.filter(lift => !discoveredLifts.some(discovered => discovered.id === lift.id));
-      if (lifts.length === 0) {
-        setLiftName("");
-        setAlreadyFound(true);
-        setTimeout(() => setAlreadyFound(false), 2000);
-        return;
-      }
+    if (lifts.length === 0) {
+      setLiftName("");
+      setAlreadyFound(true);
+      setTimeout(() => setAlreadyFound(false), 2000);
+      return;
+    }
 
     const source = liftLayerRef.current?.getSource();
     if (!source) {
@@ -150,8 +151,8 @@ export default function Game({ resort }: GameProps) {
 
     if (discoveredLifts.length + lifts.length >= resort.lifts.features.length) {
       setGameState(GameState.Solved);
-      // focus the entire map
-      focusExtent = source.getExtent();
+      action_markSolved(resort.id); // do not await the promise here
+      focusExtent = source.getExtent(); // focus the entire map
     }
     if (focusExtent) {
       mapRef.current?.getView().fit(focusExtent, {
