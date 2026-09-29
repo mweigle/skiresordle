@@ -1,6 +1,6 @@
 "use client"
 
-import { action_getInitialResorts, action_searchResorts } from "@/lib/actions";
+import { action_searchResorts } from "@/lib/actions";
 import { ResortIdent } from "@/types/types";
 // import Fuse from "fuse.js";
 import Link from "next/link";
@@ -12,14 +12,14 @@ export default function ResortSearch() {
   const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>([]);
   const [debounceTimeout, setDebounceTimout] = useState<NodeJS.Timeout | null>(null);
 
-  async function onUpdate(e: ChangeEvent<HTMLInputElement>) {
+  function onUpdate(e: ChangeEvent<HTMLInputElement>) {
     setResortName(e.target.value);
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }
     const timeout = setTimeout(async () => {
-      const list = await action_searchResorts(resortName);
+      const list = await action_searchResorts(e.target.value);
       setFilteredResorts(list);  
     }, 300);
     setDebounceTimout(timeout);
@@ -32,6 +32,7 @@ export default function ResortSearch() {
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
+      setDebounceTimout(null);
     }
     const list = await action_searchResorts(resortName);
     setFilteredResorts(list);
@@ -46,7 +47,7 @@ export default function ResortSearch() {
 
   useEffect(() => {
     (async () => {
-      const list = await action_getInitialResorts();
+      const list = await action_searchResorts(null);
       // const resortSearch = new Fuse(list, {
       //   keys: ["name"],
       //   // shouldSort: true,

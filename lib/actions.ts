@@ -11,21 +11,10 @@ export async function action_markSolved(resortId: number) {
     }
 }
 
-export async function action_getInitialResorts(): Promise<ResortIdent[]> {
+export async function action_searchResorts(query: string | null): Promise<ResortIdent[]> {
     let resorts;
     try {
-        resorts = getResorts();
-    } catch (e) {
-        console.error(e);
-        return [];
-    }
-    return resorts;
-}
-
-export async function action_searchResorts(query: string): Promise<ResortIdent[]> {
-    let resorts;
-    try {
-        resorts = searchResorts(query);
+        resorts = (query ? searchResorts(query) : getResorts());
     } catch (e) {
         console.error(e);
         return [];
