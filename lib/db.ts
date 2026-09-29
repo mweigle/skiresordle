@@ -9,7 +9,8 @@ db.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT N
 
 // prepare statements
 const incrementNSolvedStmt = db.prepare<number>("UPDATE resorts SET n_solved = n_solved + 1 WHERE id = ?")
-const getResortsStmt = db.prepare<[], ResortIdent>("SELECT id, name FROM resorts ORDER BY n_played DESC");
+const getResortsStmt = db.prepare<[], ResortIdent>("SELECT id, name FROM resorts ORDER BY n_played DESC LIMIT 50");
+const getResortSearchStmt = db.prepare<string, ResortIdent>("SELECT id, name FROM resorts WHERE name LIKE ? LIMIT 50");
 const getLiftsByIdStmt = db.prepare<number, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE id = ?");
 const getLiftsByNameStmt = db.prepare<string, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE name = ?");
 const insertLiftsStmt = db.prepare<[string, number]>("UPDATE resorts SET lifts = ? WHERE id = ?");
@@ -62,4 +63,10 @@ export function deleteLiftsForResort(id: number): number {
 
 export function incrementNSolved(id: number) {
     incrementNSolvedStmt.run(id);
+}
+
+export function searchResorts(query: string): ResortIdent[] {
+    const pattern = `%${query}%`;
+    const rows = getResortSearchStmt.all(pattern);
+    return rows;
 }

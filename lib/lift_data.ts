@@ -4,7 +4,7 @@ import { getLiftsForResortId, getLiftsForResortName, getResorts, insertLiftsForR
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 
 function queryApi(overpassQuery: string) {
-    console.log("calling overpass API", overpassQuery);
+    // console.log("calling overpass API", overpassQuery);
     return fetch(OVERPASS_API, {
         method: "POST",
         body: "data=" + encodeURIComponent(overpassQuery),
@@ -91,7 +91,7 @@ export async function loadOrFetchLifts(resortNameOrId: string | number): Promise
 }
 
 export async function fetchResorts(): Promise<number> {
-    const overpassQuery = `[out:json][timeout:25]; area["landuse"="winter_sports"]; out tags;`
+    const overpassQuery = `[out:json][timeout:25]; area["landuse"="winter_sports"]; out tags;`;
 
     const result = await queryApi(overpassQuery);
     if (!result.ok) {
@@ -103,8 +103,4 @@ export async function fetchResorts(): Promise<number> {
     const skiResorts = resorts.elements.filter(({ tags }) => tags.name && (!tags.sport || tags.sport.includes("skiing")));
     insertResorts(skiResorts);
     return skiResorts.length;
-}
-
-export function loadCachedResorts(): ResortIdent[] {
-    return getResorts();
 }

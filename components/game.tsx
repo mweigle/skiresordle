@@ -308,7 +308,7 @@ export default function Game({ resort }: GameProps) {
 
   return <>
     <div id="map" className="absolute inset-0 z-1"></div>
-    <main className="grid grid-cols-4">
+    <main className="grid h-dvh grid-cols-4 grid-rows-[auto_minmax(0,1fr)]">
       <div className="z-2 mt-10 p-3 w-fit justify-self-center col-start-1 bg-background rounded-full flex items-center justify-center">{resort.name}</div>
       {gameState === GameState.Playing
         ? <input ref={inputRef} type="text" name="Lift Name" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}

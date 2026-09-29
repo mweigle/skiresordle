@@ -1,5 +1,4 @@
 import ResortSearch from "@/components/resort_search";
-import { loadCachedResorts } from "@/lib/lift_data"
 
 export default function Home() {
   // TODO: remaining icons
@@ -7,7 +6,6 @@ export default function Home() {
   // TODO: "reveal names" feature, zumindest zum debuggen
   // TODO: einstellen, welche lift-arten man sehen will? nice to have
   // TODO: speichern welche wie oft gespielt / wie oft gelöst wurden
-  const resorts = loadCachedResorts();
 
-  return <ResortSearch resortList={resorts} />
+  return <ResortSearch />
 }
