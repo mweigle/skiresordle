@@ -4,18 +4,35 @@ import { action_getInitialResorts, action_searchResorts } from "@/lib/actions";
 import { ResortIdent } from "@/types/types";
 // import Fuse from "fuse.js";
 import Link from "next/link";
-import { useEffect, useState, KeyboardEvent } from "react";
+import { useEffect, useState, KeyboardEvent, ChangeEvent } from "react";
 
 export default function ResortSearch() {
   // const searchRef = useRef<Fuse<ResortIdent> | null>(null);
   const [resortName, setResortName] = useState("");
   const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>([]);
+  const [debounceTimeout, setDebounceTimout] = useState<NodeJS.Timeout | null>(null);
 
-  async function searchForResorts(e: KeyboardEvent) {
+  async function onUpdate(e: ChangeEvent<HTMLInputElement>) {
+    setResortName(e.target.value);
+
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+    const timeout = setTimeout(async () => {
+      const list = await action_searchResorts(resortName);
+      setFilteredResorts(list);  
+    }, 300);
+    setDebounceTimout(timeout);
+  }
+
+  async function onEnter(e: KeyboardEvent) {
     if (e.code !== "Enter") {
       return;
     }
 
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
     const list = await action_searchResorts(resortName);
     setFilteredResorts(list);
 
@@ -40,7 +57,7 @@ export default function ResortSearch() {
   }, []);
 
   return <main className="flex flex-col items-center">
-    <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={e => setResortName(e.target.value)} onKeyDown={searchForResorts}
+    <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter}
       className="w-1/2 mt-10 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
     <ul className="w-1/2 flex flex-col">
       {filteredResorts.map(resort => <li key={resort.id}>
