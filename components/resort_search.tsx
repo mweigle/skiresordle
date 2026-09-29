@@ -4,24 +4,36 @@ import { action_searchResorts } from "@/lib/actions";
 import { ResortIdent } from "@/types/types";
 // import Fuse from "fuse.js";
 import Link from "next/link";
-import { useEffect, useState, KeyboardEvent, ChangeEvent } from "react";
+import { useState, KeyboardEvent, ChangeEvent } from "react";
 
-export default function ResortSearch() {
+const DEBOUNCE_TIME_MS = 300;
+
+interface ResortSearchProps {
+  initialResorts: ResortIdent[],
+}
+
+export default function ResortSearch({ initialResorts }: ResortSearchProps) {
   // const searchRef = useRef<Fuse<ResortIdent> | null>(null);
   const [resortName, setResortName] = useState("");
-  const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>([]);
+  const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>(initialResorts);
   const [debounceTimeout, setDebounceTimout] = useState<NodeJS.Timeout | null>(null);
 
   function onUpdate(e: ChangeEvent<HTMLInputElement>) {
-    setResortName(e.target.value);
+    const name = e.target.value;
+    setResortName(name);
 
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }
+    if (!name) {
+      setDebounceTimout(null);
+      setFilteredResorts(initialResorts);
+      return;
+    }
     const timeout = setTimeout(async () => {
-      const list = await action_searchResorts(e.target.value);
-      setFilteredResorts(list);  
-    }, 300);
+      const list = await action_searchResorts(name);
+      setFilteredResorts(list);
+    }, DEBOUNCE_TIME_MS);
     setDebounceTimout(timeout);
   }
 
@@ -34,9 +46,12 @@ export default function ResortSearch() {
       clearTimeout(debounceTimeout);
       setDebounceTimout(null);
     }
-    const list = await action_searchResorts(resortName);
-    setFilteredResorts(list);
-
+    if (resortName) {
+      const list = await action_searchResorts(resortName);
+      setFilteredResorts(list);
+    } else {
+      setFilteredResorts(initialResorts);
+    }
     // const search = searchRef.current;
     // if (!search) {
     //   return;
@@ -44,18 +59,6 @@ export default function ResortSearch() {
     // const filtered = search.search(value).map(({ item }) => item);
     // setFilteredResorts(filtered);
   }
-
-  useEffect(() => {
-    (async () => {
-      const list = await action_searchResorts(null);
-      // const resortSearch = new Fuse(list, {
-      //   keys: ["name"],
-      //   // shouldSort: true,
-      // });
-      // searchRef.current = resortSearch;
-      setFilteredResorts(list);
-    })();
-  }, []);
 
   return <main className="flex flex-col items-center">
     <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter}

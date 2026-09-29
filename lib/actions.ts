@@ -1,7 +1,7 @@
 "use server"
 
 import { ResortIdent } from "@/types/types";
-import { getResorts, incrementNSolved, searchResorts } from "./db"
+import { incrementNSolved, searchResorts } from "./db"
 
 export async function action_markSolved(resortId: number) {
     try {
@@ -11,13 +11,11 @@ export async function action_markSolved(resortId: number) {
     }
 }
 
-export async function action_searchResorts(query: string | null): Promise<ResortIdent[]> {
-    let resorts;
+export async function action_searchResorts(query: string): Promise<ResortIdent[]> {
     try {
-        resorts = (query ? searchResorts(query) : getResorts());
+        return searchResorts(query);
     } catch (e) {
         console.error(e);
         return [];
     }
-    return resorts;
 }
