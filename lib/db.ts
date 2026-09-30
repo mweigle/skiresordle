@@ -1,39 +1,62 @@
 import { GeoFeatureList, OverpassResort, ResortIdent, ResortWithLifts } from "@/types/types";
-import Database from "better-sqlite3";
+import SqliteDatabase, { Database, Statement, Transaction } from "better-sqlite3";
 
-const db = new Database("./data/data.db");
-db.pragma("journal_mode = WAL");
+interface Db {
+    engine: Database,
+    getResortsStmt: Statement<[], ResortIdent>,
+    getResortSearchStmt: Statement<string, ResortIdent>,
+    getLiftsByIdStmt: Statement<number, ResortWithLifts>,
+    getLiftsByNameStmt: Statement<string, ResortWithLifts>,
+    insertLiftsStmt: Statement<[string, number]>,
+    deleteLiftsStmt: Statement<number>,
+    incrementNSolvedStmt: Statement<number>,
+    insertResortsTrans: Transaction,
+}
 
-// create table
-db.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT, n_played INTEGER DEFAULT 0, n_solved INTEGER DEFAULT 0)");
+let db: Db | null = null;
 
-// prepare statements
-const incrementNSolvedStmt = db.prepare<number>("UPDATE resorts SET n_solved = n_solved + 1 WHERE id = ?")
-const getResortsStmt = db.prepare<[], ResortIdent>("SELECT id, name FROM resorts ORDER BY n_played DESC LIMIT 50");
-const getResortSearchStmt = db.prepare<string, ResortIdent>("SELECT id, name FROM resorts WHERE name LIKE ? LIMIT 50");
-const getLiftsByIdStmt = db.prepare<number, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE id = ?");
-const getLiftsByNameStmt = db.prepare<string, ResortWithLifts>("SELECT id, name, lifts FROM resorts WHERE name = ?");
-const insertLiftsStmt = db.prepare<[string, number]>("UPDATE resorts SET lifts = ? WHERE id = ?");
-const insertResortStmt = db.prepare<[number, string]>("INSERT INTO resorts (id, name) VALUES (?, ?)");
-const insertResortsTrans = db.transaction(resorts => {
-    for (const resort of resorts) {
-        insertResortStmt.run(resort.id, resort.tags.name);
+function getDb(): Db {
+    if (!db) {
+        const engine = new SqliteDatabase("./data/data.db");
+        engine.pragma("journal_mode = WAL");
+
+        // create table
+        engine.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT, n_played INTEGER DEFAULT 0, n_solved INTEGER DEFAULT 0)");
+
+        // prepare statements
+        const insertResortStmt = engine.prepare<[number, string]>("INSERT INTO resorts (id, name) VALUES (?, ?)");
+        const insertResortsTrans = engine.transaction(resorts => {
+            for (const resort of resorts) {
+                insertResortStmt.run(resort.id, resort.tags.name);
+            }
+        });
+        db = {
+            engine,
+            getResortsStmt: engine.prepare("SELECT id, name FROM resorts ORDER BY n_played DESC LIMIT 50"),
+            getResortSearchStmt: engine.prepare("SELECT id, name FROM resorts WHERE name LIKE ? LIMIT 50"),
+            getLiftsByIdStmt: engine.prepare("UPDATE resorts SET n_played = n_played + 1 WHERE id = ? RETURNING id, name, lifts"),
+            getLiftsByNameStmt: engine.prepare("UPDATE resorts SET n_played = n_played + 1 WHERE name = ? RETURNING id, name, lifts"),
+            insertLiftsStmt: engine.prepare("UPDATE resorts SET lifts = ? WHERE id = ?"),
+            deleteLiftsStmt: engine.prepare("UPDATE resorts SET lifts = NULL WHERE id = ?"),
+            incrementNSolvedStmt: engine.prepare("UPDATE resorts SET n_solved = n_solved + 1 WHERE id = ?"),
+            insertResortsTrans,
+        };
     }
-});
-const deleteLiftsStmt = db.prepare<number>("UPDATE resorts SET lifts = NULL WHERE id = ?");
+    return db;
+}
 
 export function getResorts(): ResortIdent[] {
-    const rows = getResortsStmt.all();
+    const rows = getDb().getResortsStmt.all();
     return rows;
 }
 
 export function getLiftsForResortName(name: string): ResortWithLifts | undefined {
-    const resort = getLiftsByNameStmt.get(name);
+    const resort = getDb().getLiftsByNameStmt.get(name);
     return evaluateResort(resort);
 }
 
 export function getLiftsForResortId(id: number): ResortWithLifts | undefined {
-    const resort = getLiftsByIdStmt.get(id);
+    const resort = getDb().getLiftsByIdStmt.get(id);
     return evaluateResort(resort);
 }
 
@@ -50,23 +73,23 @@ function evaluateResort(resort: ResortWithLifts | undefined): ResortWithLifts | 
 
 export function insertLiftsForResort(id: number, lifts: GeoFeatureList) {
     const liftsJson = JSON.stringify(lifts);
-    insertLiftsStmt.run(liftsJson, id);
+    getDb().insertLiftsStmt.run(liftsJson, id);
 }
 
 export function insertResorts(resorts: OverpassResort[]) {
-    insertResortsTrans(resorts);
+    getDb().insertResortsTrans(resorts);
 }
 
 export function deleteLiftsForResort(id: number): number {
-    return deleteLiftsStmt.run(id).changes;
+    return getDb().deleteLiftsStmt.run(id).changes;
 }
 
 export function incrementNSolved(id: number) {
-    incrementNSolvedStmt.run(id);
+    getDb().incrementNSolvedStmt.run(id);
 }
 
 export function searchResorts(query: string): ResortIdent[] {
     const pattern = `%${query}%`;
-    const rows = getResortSearchStmt.all(pattern);
+    const rows = getDb().getResortSearchStmt.all(pattern);
     return rows;
 }

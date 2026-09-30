@@ -215,7 +215,6 @@ export default function Game({ resort }: GameProps) {
       ...feature.properties,
       id: feature.id,
     })) || [];
-    // setDiscoveredLifts([]);
 
     const search = new Fuse<Lift>(liftList, {
       keys: ["name", "alt_name"],

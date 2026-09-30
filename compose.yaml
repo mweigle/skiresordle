@@ -1,0 +1,11 @@
+services:
+  skiresordle:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - skiresordle-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  skiresordle-data:
