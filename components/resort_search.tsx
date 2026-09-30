@@ -4,9 +4,9 @@ import { action_searchResorts } from "@/lib/actions";
 import { ResortIdent } from "@/types/types";
 // import Fuse from "fuse.js";
 import Link from "next/link";
-import { useState, KeyboardEvent, ChangeEvent } from "react";
+import { useState, KeyboardEvent, ChangeEvent, useRef } from "react";
 
-const DEBOUNCE_TIME_MS = 300;
+const DEBOUNCE_TIME_MS = 400;
 
 interface ResortSearchProps {
   initialResorts: ResortIdent[],
@@ -16,25 +16,25 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
   // const searchRef = useRef<Fuse<ResortIdent> | null>(null);
   const [resortName, setResortName] = useState("");
   const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>(initialResorts);
-  const [debounceTimeout, setDebounceTimout] = useState<NodeJS.Timeout | null>(null);
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   function onUpdate(e: ChangeEvent<HTMLInputElement>) {
     const name = e.target.value;
     setResortName(name);
 
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
     }
     if (!name) {
-      setDebounceTimout(null);
+      debounceTimeout.current = null;
       setFilteredResorts(initialResorts);
-      return;
+    } else {
+      debounceTimeout.current = setTimeout(async () => {
+        const list = await action_searchResorts(name);
+        setFilteredResorts(list);
+        debounceTimeout.current = null;
+      }, DEBOUNCE_TIME_MS);
     }
-    const timeout = setTimeout(async () => {
-      const list = await action_searchResorts(name);
-      setFilteredResorts(list);
-    }, DEBOUNCE_TIME_MS);
-    setDebounceTimout(timeout);
   }
 
   async function onEnter(e: KeyboardEvent) {
@@ -42,9 +42,9 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
       return;
     }
 
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
-      setDebounceTimout(null);
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+      debounceTimeout.current = null;
     }
     if (resortName) {
       const list = await action_searchResorts(resortName);
