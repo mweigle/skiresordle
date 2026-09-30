@@ -253,14 +253,35 @@ export default function Game({ resort }: GameProps) {
         return;
       }
 
-      const feature = olMap.forEachFeatureAtPixel(event.pixel, (feature, layer) => {
-        if (layer === liftLayer) {
-          return feature as Feature;
+      const resolution = olMap.getView().getResolution();
+      if (!resolution) {
+        return;
+      }
+
+      const [x, y] = event.coordinate;
+      const tolerance = 10.5 * resolution;
+      const toleranceSquared = tolerance * tolerance;
+      const candidates = liftSource.getFeaturesInExtent([
+        x - tolerance,
+        y - tolerance,
+        x + tolerance,
+        y + tolerance,
+      ]);
+
+      let feature: Feature | null = null;
+      let closestDistanceSquared = toleranceSquared;
+      for (const candidate of candidates) {
+        const geometry = candidate.getGeometry();
+        if (!geometry) {
+          continue;
         }
-        return undefined;
-      },
-        { hitTolerance: 8 }
-      );
+
+        const distanceSquared = geometry.closestPointXY(x, y, [], Infinity);
+        if (distanceSquared < closestDistanceSquared) {
+          feature = candidate;
+          closestDistanceSquared = distanceSquared;
+        }
+      }
 
       const previousFeature = hoveredFeatureRef.current;
 
