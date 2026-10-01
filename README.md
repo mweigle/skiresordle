@@ -70,6 +70,16 @@ scp skiresordle.tar user@your-server:/tmp/skiresordle.tar
 
 From the repository checkout on the server, run `sh ./restart.sh` (or pass a different image archive path as its first argument). It fast-forwards the checkout, validates the TLS Compose configuration, loads the prebuilt image, and updates the services without first stopping them. Configure the server's `.env` before using the TLS profile.
 
+To deploy automatically on every push to `master`, configure these repository Actions secrets:
+
+- `DEPLOY_HOST`: the server hostname or IP address.
+- `DEPLOY_USER`: the SSH user that can run Docker and access the checkout.
+- `DEPLOY_SSH_KEY`: that user's private SSH key.
+- `DEPLOY_KNOWN_HOSTS`: the server's verified `known_hosts` entry.
+- `DEPLOY_PATH`: the absolute path to the repository checkout on the server (use only letters, numbers, dots, underscores, slashes, and hyphens).
+
+The workflow builds a `linux/amd64` image on GitHub Actions, transfers it over SSH, and runs `restart.sh` on the server. The server must have the repository checkout and its own `.env` file configured. Since `restart.sh` runs `git pull --ff-only`, the server user also needs Git access to the repository.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
