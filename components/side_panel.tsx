@@ -7,7 +7,7 @@ interface SidePanelProps {
   revealAll: () => void,
 }
 
-// TODO: circle that fills as more lifts are discovered
+// XXX: circle that fills as more lifts are discovered
 
 export default function SidePanel({ nLifts, discovered, revealAll }: SidePanelProps) {
   return <>

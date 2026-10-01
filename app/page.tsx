@@ -7,7 +7,6 @@ export default async function Home() {
   // TODO: front page
   // TODO: "reveal names" feature, zumindest zum debuggen
   // TODO: einstellen, welche lift-arten man sehen will? nice to have
-  // TODO: speichern welche wie oft gespielt / wie oft gelöst wurden
   await connection();
   const resorts = getResorts();
 

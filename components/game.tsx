@@ -166,7 +166,7 @@ export default function Game({ resort }: GameProps) {
     setLiftName("");
   }
 
-  // TODO: probably for debugging only
+  // currently for debugging only
   function revealRest() {
     setDiscoveredLifts(resort.lifts.features.map(feature => ({
       ...feature.properties,
