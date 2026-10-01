@@ -66,4 +66,4 @@ jobs:
             -o "UserKnownHostsFile=$HOME/.ssh/known_hosts" \
             -o StrictHostKeyChecking=yes \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "sh '${DEPLOY_PATH}/restart.sh' '${archive}' && rm -f '${archive}'"
+            "git -C '${DEPLOY_PATH}' pull --ff-only && test -f '${DEPLOY_PATH}/restart.sh' && sh '${DEPLOY_PATH}/restart.sh' '${archive}' && rm -f '${archive}'"
