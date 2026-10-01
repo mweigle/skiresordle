@@ -1,5 +1,5 @@
-import { GeoFeature, GeoFeatureList, OverpassJson, OverpassResorts, ResortIdent, ResortWithLifts } from "@/types/types";
-import { getLiftsForResortId, getLiftsForResortName, getResorts, insertLiftsForResort, insertResorts } from "./db";
+import { GeoFeature, GeoFeatureList, OverpassJson, OverpassResorts, ResortWithLifts } from "@/types/types";
+import { getLiftsForResortId, getLiftsForResortName, insertLiftsForResort, insertResorts } from "./db";
 
 const OVERPASS_API = "https://overpass-api.de/api/interpreter";
 

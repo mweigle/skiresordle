@@ -31,13 +31,32 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Docker Compose
 
-Start the app and its Nginx reverse proxy with:
+Start the app and its Nginx reverse proxy over HTTP with:
 
 ```bash
 docker compose up --build
 ```
 
 Open [http://localhost](http://localhost) to view the app. Nginx forwards requests to the app and allows up to five minutes for upstream responses.
+
+### Enable TLS with Certbot
+
+Point a public DNS `A` record (and, if used, `AAAA` record) for your domain to this server, and allow inbound ports 80 and 443 through the firewall. Copy `.env.example` to `.env` and set your domain and email address:
+
+```dotenv
+DOMAIN=games.example.com
+EMAIL=admin@example.com
+```
+
+Start the app, Nginx, and Certbot:
+
+```bash
+docker compose --profile tls up --build -d
+```
+
+Certbot obtains a certificate using the HTTP-01 challenge served by Nginx. Once the certificate is available, Nginx starts serving HTTPS and redirects regular HTTP requests to HTTPS. Certbot checks for renewals every 12 hours; Nginx reloads when a renewed certificate is installed. The certificate and challenge files are stored in named Docker volumes.
+
+To inspect issuance or renewal status, run `docker compose logs -f certbot nginx`. For initial troubleshooting, verify DNS resolution and that port 80 is reachable from the public internet.
 
 ## Deploy on Vercel
 

@@ -1,12 +1,15 @@
 "use client"
 
+import { action_markSolved } from "@/lib/actions";
+import { Lift, ResortWithLifts } from "@/types/types";
 import Fuse from "fuse.js";
-import MapBrowserEvent from "ol/MapBrowserEvent";
+import { extend } from "ol/extent";
 import Feature, { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import Map from "ol/Map";
+import MapBrowserEvent from "ol/MapBrowserEvent";
 import "ol/ol.css";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
@@ -14,9 +17,6 @@ import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
-import { Lift, ResortWithLifts } from "@/types/types";
-import { extend } from "ol/extent";
-import { action_markSolved } from "@/lib/actions";
 
 enum LiftStatus {
   Inactive,
