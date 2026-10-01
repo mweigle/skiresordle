@@ -34,8 +34,3 @@ sudo docker load -i /tmp/skiresordle.tar
 
 # make API requests without timeout
 curl.exe --max-time 120 -X POST http://localhost:3000/api/
-
-# TODO: 
-# - DNS entry
-# - SSL certificate
-# - do not run docker as root!

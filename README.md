@@ -58,6 +58,18 @@ Certbot obtains a certificate using the HTTP-01 challenge served by Nginx. Once 
 
 To inspect issuance or renewal status, run `docker compose logs -f certbot nginx`. For initial troubleshooting, verify DNS resolution and that port 80 is reachable from the public internet.
 
+### Deploy a prebuilt image
+
+For a server that should not build the app locally, build and save the image on a machine with Docker, then copy it to the server:
+
+```bash
+docker buildx build --platform linux/amd64 --tag skiresordle:latest --load .
+docker save --output skiresordle.tar skiresordle:latest
+scp skiresordle.tar user@your-server:/tmp/skiresordle.tar
+```
+
+From the repository checkout on the server, run `sh ./restart.sh` (or pass a different image archive path as its first argument). It fast-forwards the checkout, validates the TLS Compose configuration, loads the prebuilt image, and updates the services without first stopping them. Configure the server's `.env` before using the TLS profile.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
