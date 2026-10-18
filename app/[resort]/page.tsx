@@ -1,5 +1,5 @@
 import Game from "@/components/game";
-import { loadOrFetchLifts } from "@/lib/lift_data";
+import { loadResortWithLifts } from "@/lib/lift_data";
 import Link from "next/link";
 
 export default async function GamePage({ params }: { params: Promise<{ resort: string }> }) {
@@ -8,7 +8,7 @@ export default async function GamePage({ params }: { params: Promise<{ resort: s
 
   let resortWithLifts;
   try {
-    resortWithLifts = await loadOrFetchLifts(resortNameOrId);
+    resortWithLifts = await loadResortWithLifts(resortNameOrId);
   } catch (e) {
     return <main className="flex flex-col justify-center items-center mt-10">
       <span>Encountered an error:</span>

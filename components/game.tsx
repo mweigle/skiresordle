@@ -1,7 +1,6 @@
 "use client"
 
-import { action_markSolved } from "@/lib/actions";
-import { Lift, ResortWithLifts } from "@/types/types";
+import { ResortWithLifts } from "@/lib/lift_data";
 import Fuse from "fuse.js";
 import { extend } from "ol/extent";
 import Feature, { FeatureLike } from "ol/Feature";
@@ -11,12 +10,14 @@ import VectorLayer from "ol/layer/Vector";
 import Map from "ol/Map";
 import MapBrowserEvent from "ol/MapBrowserEvent";
 import "ol/ol.css";
+import { defaults as defaultControls } from "ol/control/defaults";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
+import { LiftProperties } from "openskidata-format";
 
 enum LiftStatus {
   Inactive,
@@ -26,6 +27,7 @@ enum LiftStatus {
 
 const STATUS = "status";
 const MAX_NAME_DISTANCE = 2;
+const MAP_ATTRIBUTION = 'Data from OpenSkiData / OpenSkiMap.org, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), Skimap.org, Who\'s On First, © Mapterhorn';
 
 // ------------ WARNING: AI slop
 function editDistance(first: string, second: string) {
@@ -84,10 +86,10 @@ export default function Game({ resort }: GameProps) {
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const hoveredFeatureRef = useRef<Feature | null>(null);
-  const searchRef = useRef<Fuse<Lift> | null>(null);
+  const searchRef = useRef<Fuse<LiftProperties> | null>(null);
 
   const [liftName, setLiftName] = useState("");
-  const [discoveredLifts, setDiscoveredLifts] = useState<Lift[]>([]);
+  const [discoveredLifts, setDiscoveredLifts] = useState<LiftProperties[]>([]);
 
   const [incorrectGuess, setIncorrectGuess] = useState(false);
   const [alreadyFound, setAlreadyFound] = useState(false);
@@ -107,7 +109,7 @@ export default function Game({ resort }: GameProps) {
     let lifts = search.search(query)
       .filter(({ item }) =>
         // check for matching names
-        [item.name, item.alt_name].some(name => name && matchesLiftName(query, name)))
+        item.name && matchesLiftName(query, item.name))
       .map(({ item }) => item);
 
     if (lifts.length === 0) {
@@ -151,7 +153,6 @@ export default function Game({ resort }: GameProps) {
 
     if (discoveredLifts.length + lifts.length >= resort.lifts.features.length) {
       setGameState(GameState.Solved);
-      action_markSolved(resort.id); // do not await the promise here
       focusExtent = source.getExtent(); // focus the entire map
     }
     if (focusExtent) {
@@ -168,10 +169,7 @@ export default function Game({ resort }: GameProps) {
 
   // currently for debugging only
   function revealRest() {
-    setDiscoveredLifts(resort.lifts.features.map(feature => ({
-      ...feature.properties,
-      id: feature.id,
-    })) || []);
+    setDiscoveredLifts(resort.lifts.features.map(feature => feature.properties));
     setGameState(GameState.GaveUp);
   }
 
@@ -211,13 +209,10 @@ export default function Game({ resort }: GameProps) {
     }
 
     // create a list of features
-    const liftList = resort.lifts.features.map(feature => ({
-      ...feature.properties,
-      id: feature.id,
-    })) || [];
+    const liftList = resort.lifts.features.map(feature => feature.properties);
 
-    const search = new Fuse<Lift>(liftList, {
-      keys: ["name", "alt_name"],
+    const search = new Fuse<LiftProperties>(liftList, {
+      keys: ["name"],
       threshold: 1, // TODO: this may be pointless with the new filtering logic
     });
 
@@ -235,9 +230,15 @@ export default function Game({ resort }: GameProps) {
 
     const olMap = new Map({
       target: "map",
+      controls: defaultControls({
+        attributionOptions: { 
+          collapsible: true,
+          collapsed: false
+        },
+      }),
       layers: [
         new TileLayer({
-          source: new OSM(), // TODO: eventually use something other than OSM directly!          
+          source: new OSM({ attributions: MAP_ATTRIBUTION }), // TODO: eventually use something other than OSM directly!
         }),
         liftLayer,
       ],

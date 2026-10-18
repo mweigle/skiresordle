@@ -1,95 +1,88 @@
-import { GeoFeatureList, OverpassResort, ResortIdent, ResortWithLifts } from "@/types/types";
-import SqliteDatabase, { Database, Statement, Transaction } from "better-sqlite3";
+import SqliteDatabase, { Database, Statement } from "better-sqlite3";
 
-interface Db {
-    engine: Database,
-    getResortsStmt: Statement<[], ResortIdent>,
-    getResortSearchStmt: Statement<string, ResortIdent>,
-    getLiftsByIdStmt: Statement<number, ResortWithLifts>,
-    getLiftsByNameStmt: Statement<string, ResortWithLifts>,
-    insertLiftsStmt: Statement<[string, number]>,
-    deleteLiftsStmt: Statement<number>,
-    incrementNSolvedStmt: Statement<number>,
-    insertResortsTrans: Transaction,
+export interface DbResort {
+    id: string,
+    name: string,
+    n_lifts: number,
+    lifts_geojson: string,
 }
 
-let db: Db | null = null;
+export interface ResortIdent {
+    id: string,
+    name: string,
+    n_lifts: number,
+}
 
-function getDb(): Db {
+interface SkiresordleDatabase {
+    engine: Database,
+    getLiftsByIdStmt: Statement<string, DbResort>,
+    getLiftsByNameStmt: Statement<string, DbResort>,
+    getResortsStmt: Statement<[], ResortIdent>,
+    getResortSearchStmt: Statement<string, ResortIdent>,
+}
+
+let db: SkiresordleDatabase | null = null;
+
+function getDatabase(): SkiresordleDatabase {
     if (!db) {
-        const engine = new SqliteDatabase("./data/data.db");
+        const engine = new SqliteDatabase("./data/openskidata.db");
         engine.pragma("journal_mode = WAL");
+        engine.exec(`
+            CREATE TABLE IF NOT EXISTS resorts (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                n_lifts INTEGER,
+                lifts_geojson TEXT
+            );
+        `); // TODO: find a way to put stable IDs, maybe hash the name or smth...
 
-        // create table
-        engine.exec("CREATE TABLE IF NOT EXISTS resorts (id INTEGER PRIMARY KEY, name TEXT NOT NULL, lifts TEXT, n_played INTEGER DEFAULT 0, n_solved INTEGER DEFAULT 0)");
-
-        // prepare statements
-        const insertResortStmt = engine.prepare<[number, string]>("INSERT INTO resorts (id, name) VALUES (?, ?)");
-        const insertResortsTrans = engine.transaction(resorts => {
-            for (const resort of resorts) {
-                insertResortStmt.run(resort.id, resort.tags.name);
-            }
-        });
         db = {
             engine,
-            getResortsStmt: engine.prepare("SELECT id, name FROM resorts ORDER BY n_played DESC LIMIT 50"),
+            getLiftsByIdStmt: engine.prepare("SELECT id, name, n_lifts, lifts_geojson FROM resorts WHERE id = ?"),
+            getLiftsByNameStmt: engine.prepare("SELECT id, name, n_lifts, lifts_geojson FROM resorts WHERE name = ?"),
+            getResortsStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts ORDER BY n_lifts DESC LIMIT 50"),
             getResortSearchStmt: engine.prepare("SELECT id, name FROM resorts WHERE name LIKE ? LIMIT 50"),
-            getLiftsByIdStmt: engine.prepare("UPDATE resorts SET n_played = n_played + 1 WHERE id = ? RETURNING id, name, lifts"),
-            getLiftsByNameStmt: engine.prepare("UPDATE resorts SET n_played = n_played + 1 WHERE name = ? RETURNING id, name, lifts"),
-            insertLiftsStmt: engine.prepare("UPDATE resorts SET lifts = ? WHERE id = ?"),
-            deleteLiftsStmt: engine.prepare("UPDATE resorts SET lifts = NULL WHERE id = ?"),
-            incrementNSolvedStmt: engine.prepare("UPDATE resorts SET n_solved = n_solved + 1 WHERE id = ?"),
-            insertResortsTrans,
         };
     }
     return db;
 }
 
-export function getResorts(): ResortIdent[] {
-    const rows = getDb().getResortsStmt.all();
-    return rows;
+
+export function insertResortsTransaction(
+    populateResorts: (insertResort: (resort: DbResort) => void) => void
+) {
+    const database = getDatabase();
+    const deleteStmt = database.engine.prepare("DELETE FROM resorts");
+    const insertStmt = database.engine.prepare<[string, string, number, string]>(
+        "INSERT INTO resorts (id, name, n_lifts, lifts_geojson) VALUES (?, ?, ?, ?)"
+    );
+    const insertResort = (resort: DbResort) => insertStmt.run(
+        resort.id, resort.name, resort.n_lifts, resort.lifts_geojson);
+
+    const insertTransaction = database.engine.transaction(() => {
+        deleteStmt.run();
+        populateResorts(insertResort);
+    });
+    insertTransaction();
 }
 
-export function getLiftsForResortName(name: string): ResortWithLifts | undefined {
-    const resort = getDb().getLiftsByNameStmt.get(name);
-    return evaluateResort(resort);
-}
-
-export function getLiftsForResortId(id: number): ResortWithLifts | undefined {
-    const resort = getDb().getLiftsByIdStmt.get(id);
-    return evaluateResort(resort);
-}
-
-function evaluateResort(resort: ResortWithLifts | undefined): ResortWithLifts | undefined {
-    if (!resort) {
-        return undefined; // the resort does not exist
-    }
-    if (!resort.lifts) {
-        return resort; // the resort exists but lifts have not been preloaded
-    }
-    resort.lifts = JSON.parse(resort.lifts as unknown as string); // ugly hack to make typescript happy
+export function getLiftsForResortName(name: string): DbResort | undefined {
+    const resort = getDatabase().getLiftsByNameStmt.get(name);
     return resort;
 }
 
-export function insertLiftsForResort(id: number, lifts: GeoFeatureList) {
-    const liftsJson = JSON.stringify(lifts);
-    getDb().insertLiftsStmt.run(liftsJson, id);
+export function getLiftsForResortId(id: string): DbResort | undefined {
+    const resort = getDatabase().getLiftsByIdStmt.get(id);
+    return resort;
 }
 
-export function insertResorts(resorts: OverpassResort[]) {
-    getDb().insertResortsTrans(resorts);
-}
-
-export function deleteLiftsForResort(id: number): number {
-    return getDb().deleteLiftsStmt.run(id).changes;
-}
-
-export function incrementNSolved(id: number) {
-    getDb().incrementNSolvedStmt.run(id);
+export function getResorts(): ResortIdent[] {
+    const rows = getDatabase().getResortsStmt.all();
+    return rows;
 }
 
 export function searchResorts(query: string): ResortIdent[] {
     const pattern = `%${query}%`;
-    const rows = getDb().getResortSearchStmt.all(pattern);
+    const rows = getDatabase().getResortSearchStmt.all(pattern);
     return rows;
 }

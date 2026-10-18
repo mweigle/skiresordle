@@ -1,15 +1,6 @@
 "use server"
 
-import { ResortIdent } from "@/types/types";
-import { incrementNSolved, searchResorts } from "./db"
-
-export async function action_markSolved(resortId: number) {
-    try {
-        incrementNSolved(resortId);
-    } catch (e) {
-        console.error(e);
-    }
-}
+import { searchResorts, ResortIdent } from "./db";
 
 export async function action_searchResorts(query: string): Promise<ResortIdent[]> {
     try {

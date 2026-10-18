@@ -58,6 +58,10 @@ Certbot obtains a certificate using the HTTP-01 challenge served by Nginx. Once 
 
 To inspect issuance or renewal status, run `docker compose logs -f certbot nginx`. For initial troubleshooting, verify DNS resolution and that port 80 is reachable from the public internet.
 
+### Import OpenSkiMap lifts
+
+Send a `POST` request to `/api/fetch_resorts` to download OpenSkiMap's lift GeoJSON and rebuild `data/openskidata.db`. The database has one `resorts` row for each ski area associated with at least one lift. Each row stores the ski-area ID and name, plus its associated `LiftFeature` objects as a JSON array in the `lifts` column. This database is separate from the existing Overpass database.
+
 ### Deploy a prebuilt image
 
 For a server that should not build the app locally, build and save the image on a machine with Docker, then copy it to the server:

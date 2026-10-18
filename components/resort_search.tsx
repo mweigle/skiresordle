@@ -1,7 +1,7 @@
 "use client"
 
 import { action_searchResorts } from "@/lib/actions";
-import { ResortIdent } from "@/types/types";
+import { ResortIdent } from "@/lib/db";
 // import Fuse from "fuse.js";
 import Link from "next/link";
 import { useState, KeyboardEvent, ChangeEvent, useRef } from "react";

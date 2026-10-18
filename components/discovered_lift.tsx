@@ -1,24 +1,21 @@
-import { Lift } from "@/types/types";
+import { LiftProperties, LiftType } from "openskidata-format";
 import LiftIcon from "./lift_icon";
 
-export default function DiscoveredLift({ lift }: { lift: Lift }) {
+export default function DiscoveredLift({ lift }: { lift: LiftProperties }) {
   let liftType;
-  switch (lift.type) {
-    case "j-bar":
-    case "t-bar":
-    case "platter":
-    case "row_tow": // not technically the same thing but...        
-      liftType = "drag_lift";
+  switch (lift.liftType) {
+    case LiftType.JBar:
+    case LiftType.TBar:
+    case LiftType.Platter:
+    case LiftType.RopeTow: // not technically the same thing but...        
+      liftType = LiftType.DragLift;
       break;
     default:
-      liftType = lift.type;
+      liftType = lift.liftType;
       break;
   }
 
-  let displayName = lift.name;
-  if (lift.alt_name) {
-    displayName += ` (${lift.alt_name})`;
-  }
+  const displayName = lift.name;
 
   return <li className="flex items-center justify-between">
     {displayName}<LiftIcon liftType={liftType} className="h-6 w-6" />
