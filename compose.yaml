@@ -4,9 +4,6 @@ services:
     image: skiresordle:latest
     expose:
       - "3000"
-    volumes:
-      - skiresordle-data:/app/data
-      # - "C:\\dev\\skiresordle\\data:/app/data" # for linking the local db
     restart: unless-stopped
 
   nginx:
@@ -56,6 +53,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  skiresordle-data:
   certbot-etc:
   certbot-webroot:

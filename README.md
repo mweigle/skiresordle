@@ -1,39 +1,10 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
 ## Docker Compose
 
-Start the app and its Nginx reverse proxy over HTTP with:
+Build the OpenSkiMap database before starting the app, then start the app and its Nginx reverse proxy over HTTP:
 
 ```bash
+npm ci
+npm run build:database
 docker compose up --build
 ```
 
@@ -58,9 +29,9 @@ Certbot obtains a certificate using the HTTP-01 challenge served by Nginx. Once 
 
 To inspect issuance or renewal status, run `docker compose logs -f certbot nginx`. For initial troubleshooting, verify DNS resolution and that port 80 is reachable from the public internet.
 
-### Import OpenSkiMap lifts
+### OpenSkiMap database
 
-Send a `POST` request to `/api/fetch_resorts` to download OpenSkiMap's lift GeoJSON and rebuild `data/openskidata.db`. The database has one `resorts` row for each ski area associated with at least one lift. Each row stores the ski-area ID and name, plus its associated `LiftFeature` objects as a JSON array in the `lifts` column. This database is separate from the existing Overpass database.
+Run `npm run build:database` to download OpenSkiMap's lift and ski-area GeoJSON and rebuild `data/openskidata.db`. The deploy workflow runs this script on its GitHub-hosted runner before building the Docker image, so the database is included in the image archive and does not need to be downloaded or rebuilt on the production server. The database has one `resorts` row for each operating downhill ski area with at least one named, operating lift, and each row contains that area's lift features as GeoJSON.
 
 ### Deploy a prebuilt image
 
@@ -83,9 +54,3 @@ To deploy automatically on every push to `master`, configure these repository Ac
 - `DEPLOY_PATH`: the absolute path to the repository checkout on the server (use only letters, numbers, dots, underscores, slashes, and hyphens).
 
 The workflow builds a `linux/amd64` image on GitHub Actions, transfers it over SSH, and runs `restart.sh` on the server. The server must have the repository checkout and its own `.env` file configured. Since `restart.sh` runs `git pull --ff-only`, the server user also needs Git access to the repository.
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

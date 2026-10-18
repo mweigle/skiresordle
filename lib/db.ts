@@ -27,14 +27,6 @@ function getDatabase(): SkiresordleDatabase {
     if (!db) {
         const engine = new SqliteDatabase("./data/openskidata.db");
         engine.pragma("journal_mode = WAL");
-        engine.exec(`
-            CREATE TABLE IF NOT EXISTS resorts (
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                n_lifts INTEGER,
-                lifts_geojson TEXT
-            );
-        `); // TODO: find a way to put stable IDs, maybe hash the name or smth...
 
         db = {
             engine,
@@ -45,25 +37,6 @@ function getDatabase(): SkiresordleDatabase {
         };
     }
     return db;
-}
-
-
-export function insertResortsTransaction(
-    populateResorts: (insertResort: (resort: DbResort) => void) => void
-) {
-    const database = getDatabase();
-    const deleteStmt = database.engine.prepare("DELETE FROM resorts");
-    const insertStmt = database.engine.prepare<[string, string, number, string]>(
-        "INSERT INTO resorts (id, name, n_lifts, lifts_geojson) VALUES (?, ?, ?, ?)"
-    );
-    const insertResort = (resort: DbResort) => insertStmt.run(
-        resort.id, resort.name, resort.n_lifts, resort.lifts_geojson);
-
-    const insertTransaction = database.engine.transaction(() => {
-        deleteStmt.run();
-        populateResorts(insertResort);
-    });
-    insertTransaction();
 }
 
 export function getLiftsForResortName(name: string): DbResort | undefined {
