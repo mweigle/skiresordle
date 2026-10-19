@@ -2,7 +2,6 @@
 
 import { action_searchResorts } from "@/lib/actions";
 import { ResortIdent } from "@/lib/db";
-// import Fuse from "fuse.js";
 import Link from "next/link";
 import { useState, KeyboardEvent, ChangeEvent, useRef } from "react";
 
@@ -13,7 +12,6 @@ interface ResortSearchProps {
 }
 
 export default function ResortSearch({ initialResorts }: ResortSearchProps) {
-  // const searchRef = useRef<Fuse<ResortIdent> | null>(null);
   const [resortName, setResortName] = useState("");
   const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>(initialResorts);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -52,12 +50,6 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
     } else {
       setFilteredResorts(initialResorts);
     }
-    // const search = searchRef.current;
-    // if (!search) {
-    //   return;
-    // }
-    // const filtered = search.search(value).map(({ item }) => item);
-    // setFilteredResorts(filtered);
   }
 
   return <main className="flex flex-col items-center">
@@ -65,7 +57,10 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
       className="w-1/2 mt-10 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
     <ul className="w-1/2 flex flex-col">
       {filteredResorts.map(resort => <li key={resort.id}>
-        <Link href={`/${resort.id}`} className="block p-3 border-2 rounded-md border-background hover:border-selection">{resort.name}</Link>
+        <Link href={`/${resort.id}`} className="flex justify-between p-3 border-2 rounded-md border-background hover:border-selection">
+          <span>{resort.name}</span>
+          <span>{resort.n_lifts} Lifts</span>
+        </Link>
       </li>)}
     </ul>
   </main>

@@ -2,28 +2,34 @@
 
 import { ResortWithLifts } from "@/lib/lift_data";
 import Fuse from "fuse.js";
+import apply from "ol-mapbox-style";
+import { defaults as defaultControls } from "ol/control/defaults";
 import { extend } from "ol/extent";
 import Feature, { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
-import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import Map from "ol/Map";
 import MapBrowserEvent from "ol/MapBrowserEvent";
 import "ol/ol.css";
-import { defaults as defaultControls } from "ol/control/defaults";
-import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
+import { LiftProperties } from "openskidata-format";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
-import { LiftProperties } from "openskidata-format";
+import Attribution from "ol/control/Attribution";
+import Link from "next/link";
+import TileLayer from "ol/layer/Tile";
+import { OSM } from "ol/source";
 
 enum LiftStatus {
   Inactive,
   Hovered,
   Correct,
 }
+
+const MAPTILER_API_KEY = "GdNqxAgeXV2E49H4pMfk";
+const MAP_JSON = `https://api.maptiler.com/maps/outdoor-v4/style.json?key=${MAPTILER_API_KEY}`;
 
 const STATUS = "status";
 const MAX_NAME_DISTANCE = 2;
@@ -90,10 +96,13 @@ export default function Game({ resort }: GameProps) {
 
   const [liftName, setLiftName] = useState("");
   const [discoveredLifts, setDiscoveredLifts] = useState<LiftProperties[]>([]);
+  const [revealedLifts, setRevealedLifts] = useState<LiftProperties[]>([]);
+  const [percentageSolved, setPercentageSolved] = useState(0);
 
   const [incorrectGuess, setIncorrectGuess] = useState(false);
   const [alreadyFound, setAlreadyFound] = useState(false);
   const [gameState, setGameState] = useState(GameState.Playing);
+
 
   function submitLiftName(e: KeyboardEvent) {
     if (e.code !== "Enter" || !liftName) {
@@ -151,7 +160,8 @@ export default function Game({ resort }: GameProps) {
       }
     }
 
-    if (discoveredLifts.length + lifts.length >= resort.lifts.features.length) {
+    const totalFound = discoveredLifts.length + lifts.length; 
+    if (totalFound >= resort.n_lifts) {
       setGameState(GameState.Solved);
       focusExtent = source.getExtent(); // focus the entire map
     }
@@ -163,14 +173,20 @@ export default function Game({ resort }: GameProps) {
       });
     }
 
+    setPercentageSolved(Math.floor((totalFound / resort.n_lifts) * 100))
     setDiscoveredLifts(prev => [...lifts, ...prev]);
     setLiftName("");
   }
 
-  // currently for debugging only
+  // for when the user gives up
   function revealRest() {
-    setDiscoveredLifts(resort.lifts.features.map(feature => feature.properties));
+    setRevealedLifts(resort.lifts.features
+      .filter(lift => !discoveredLifts.some(discovered => lift.properties.id === discovered.id))
+      .map(lift => lift.properties)
+    );
     setGameState(GameState.GaveUp);
+    // TODO: show a "progress bar" to see percentage you got
+    // TODO: link the attributions from OpenSkiData!
   }
 
   useEffect(() => {
@@ -231,7 +247,7 @@ export default function Game({ resort }: GameProps) {
     const olMap = new Map({
       target: "map",
       controls: defaultControls({
-        attributionOptions: { 
+        attributionOptions: {
           collapsible: true,
           collapsed: false
         },
@@ -330,18 +346,22 @@ export default function Game({ resort }: GameProps) {
   return <>
     <div id="map" className="absolute inset-0 z-1"></div>
     <main className="grid h-dvh grid-cols-4 grid-rows-[auto_minmax(0,1fr)]">
-      <div className="z-2 mt-10 p-3 w-fit justify-self-center col-start-1 bg-background rounded-full flex items-center justify-center">{resort.name}</div>
+      <div className="z-2 mt-10 col-start-1 flex items-center justify-center">
+        <Link href="/" className="p-3 bg-background rounded-md border-2 border-background hover:border-selection mr-3">&larr;</Link>
+        <span className="p-3 bg-background rounded-md border-2 border-background">{resort.name}</span>
+      </div>
       {gameState === GameState.Playing
         ? <input ref={inputRef} type="text" name="Lift Name" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}
           className={`mt-10 p-3 z-2 bg-background col-start-2 col-span-2 outline-none rounded-md border-2
             ${incorrectGuess ? "animate-shake border-error" : "border-background focus:border-selection"}`} />
-        // : gameState === GameState.Solved
-        : <span className="z-2 mt-10 h-fit p-3 bg-success col-start-2 col-span-2 flex items-center justify-center rounded-md">You got it!</span>
-        // : <span className="z-2 mt-10 h-fit p-3 bg-error col-start-2 col-span-2 flex items-center justify-center rounded-md">Found X/X</span>
+        : gameState === GameState.Solved
+          ? <span className="z-2 mt-10 h-fit p-3 bg-success col-start-2 col-span-2 flex items-center justify-center rounded-md">You got it!</span>
+          : <span className="z-2 mt-10 h-fit p-3 bg-background col-start-2 col-span-2 flex items-center justify-center rounded-md">You found {percentageSolved}%!</span>
       }
+      {/* TODO: "progress bar that show the amount of lifts gotten*/}
       <span className={`z-2 mt-5 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
         justify-center rounded-md bg-success transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
-      <SidePanel nLifts={resort.lifts.features.length} discovered={discoveredLifts} revealAll={revealRest} />
+      <SidePanel nLifts={resort.n_lifts} discovered={discoveredLifts} revealed={revealedLifts} revealAll={revealRest} />
     </main>
   </>;
 }

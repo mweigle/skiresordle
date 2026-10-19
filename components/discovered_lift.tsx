@@ -1,7 +1,7 @@
 import { LiftProperties, LiftType } from "openskidata-format";
 import LiftIcon from "./lift_icon";
 
-export default function DiscoveredLift({ lift }: { lift: LiftProperties }) {
+export default function DiscoveredLift({ lift, revealed = false }: { lift: LiftProperties, revealed?: boolean }) {
   let liftType;
   switch (lift.liftType) {
     case LiftType.JBar:
@@ -16,8 +16,9 @@ export default function DiscoveredLift({ lift }: { lift: LiftProperties }) {
   }
 
   const displayName = lift.name;
+  const color = revealed ? " text-error" : "text-foreground";
 
-  return <li className="flex items-center justify-between">
-    {displayName}<LiftIcon liftType={liftType} className="h-6 w-6" />
+  return <li className={`flex items-center justify-between ${color}`}>
+    {displayName}<LiftIcon liftType={liftType} className={`h-6 w-6 ${color}`} />
   </li>;
 }
