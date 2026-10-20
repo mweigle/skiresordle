@@ -33,7 +33,7 @@ function getDatabase(): SkiresordleDatabase {
             getLiftsByIdStmt: engine.prepare("SELECT id, name, n_lifts, lifts_geojson FROM resorts WHERE id = ?"),
             getLiftsByNameStmt: engine.prepare("SELECT id, name, n_lifts, lifts_geojson FROM resorts WHERE name = ?"),
             getResortsStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts ORDER BY n_lifts DESC LIMIT 50"),
-            getResortSearchStmt: engine.prepare("SELECT id, name FROM resorts WHERE name LIKE ? LIMIT 50"),
+            getResortSearchStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts WHERE name LIKE ? LIMIT 50"),
         };
     }
     return db;

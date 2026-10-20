@@ -53,7 +53,7 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
   }
 
   return <main className="flex flex-col items-center">
-    <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter}
+    <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter} autoComplete="off"
       className="w-1/2 mt-10 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
     <ul className="w-1/2 flex flex-col">
       {filteredResorts.map(resort => <li key={resort.id}>

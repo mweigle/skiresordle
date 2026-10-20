@@ -2,9 +2,8 @@
 
 import { ResortWithLifts } from "@/lib/lift_data";
 import Fuse from "fuse.js";
-import apply from "ol-mapbox-style";
 import { defaults as defaultControls } from "ol/control/defaults";
-import { extend } from "ol/extent";
+import { extend, Extent } from "ol/extent";
 import Feature, { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import VectorLayer from "ol/layer/Vector";
@@ -17,23 +16,24 @@ import Style from "ol/style/Style";
 import { LiftProperties } from "openskidata-format";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
-import Attribution from "ol/control/Attribution";
 import Link from "next/link";
 import TileLayer from "ol/layer/Tile";
 import { OSM } from "ol/source";
+import CompletionBar from "./completion_bar";
 
 enum LiftStatus {
   Inactive,
-  Hovered,
   Correct,
+  Missed,
 }
 
 const MAPTILER_API_KEY = "GdNqxAgeXV2E49H4pMfk";
 const MAP_JSON = `https://api.maptiler.com/maps/outdoor-v4/style.json?key=${MAPTILER_API_KEY}`;
 
 const STATUS = "status";
+const HOVERED = "hovered";
 const MAX_NAME_DISTANCE = 2;
-const MAP_ATTRIBUTION = 'Data from OpenSkiData / OpenSkiMap.org, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), Skimap.org, Who\'s On First, © Mapterhorn';
+const MAP_ATTRIBUTION = 'Data from OpenSkiData / <a href="https://openskimap.org">OpenSkiMap.org</a>, © <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), <a href="https://skimap.org">Skimap.org</a>, Who\'s On First, © Mapterhorn';
 
 // ------------ WARNING: AI slop
 function editDistance(first: string, second: string) {
@@ -160,17 +160,13 @@ export default function Game({ resort }: GameProps) {
       }
     }
 
-    const totalFound = discoveredLifts.length + lifts.length; 
+    const totalFound = discoveredLifts.length + lifts.length;
     if (totalFound >= resort.n_lifts) {
       setGameState(GameState.Solved);
       focusExtent = source.getExtent(); // focus the entire map
     }
     if (focusExtent) {
-      mapRef.current?.getView().fit(focusExtent, {
-        padding: [200, 200, 200, 200],
-        duration: 500,
-        maxZoom: 14,
-      });
+      setMapFocus(focusExtent);
     }
 
     setPercentageSolved(Math.floor((totalFound / resort.n_lifts) * 100))
@@ -178,50 +174,83 @@ export default function Game({ resort }: GameProps) {
     setLiftName("");
   }
 
+  function setMapFocus(extent: Extent) {
+      mapRef.current?.getView().fit(extent, {
+        padding: [200, 200, 200, 200],
+        duration: 500,
+        maxZoom: 14,
+      });
+  }
+
   // for when the user gives up
   function revealRest() {
-    setRevealedLifts(resort.lifts.features
+    const missedLifts = resort.lifts.features
       .filter(lift => !discoveredLifts.some(discovered => lift.properties.id === discovered.id))
-      .map(lift => lift.properties)
-    );
+      .map(lift => lift.properties);
+
+    const liftSource = liftLayerRef.current?.getSource();
+    if (liftSource) {
+      for (const lift of missedLifts) {
+        const feature = liftSource.getFeatureById(lift.id);
+        if (!feature) {
+          console.error("Could not find feature:", lift.id);
+          continue;
+        }
+
+        feature.set(STATUS, LiftStatus.Missed);
+      }
+      setMapFocus(liftSource.getExtent()!);
+    }
+    setRevealedLifts(missedLifts);
     setGameState(GameState.GaveUp);
-    // TODO: show a "progress bar" to see percentage you got
-    // TODO: link the attributions from OpenSkiData!
+  }
+
+  function onListLiftHovered(liftId: string) {
+    const lift = liftLayerRef.current?.getSource()?.getFeatureById(liftId);
+    if (lift) {
+      lift.set(HOVERED, true);
+    }
+  }
+
+  function onListLiftSelected(liftId: string) {
+    const extent = liftLayerRef.current
+      ?.getSource()
+      ?.getFeatureById(liftId)
+      ?.getGeometry()
+      ?.getExtent(); // XXX: this might be slow ...
+    if (extent) {
+      setMapFocus(extent);
+    }
   }
 
   useEffect(() => {
     // console.log("init function");
     inputRef.current?.focus();
-    const unknownStyle = new Style({
-      stroke: new Stroke({
-        color: "#555",
-        width: 3,
-      }),
-    });
-
-    const correctStyle = new Style({
-      stroke: new Stroke({
-        color: "#2ecc71", // color-success
-        width: 5,
-      }),
-    });
-
-    const hoveredStyle = new Style({
-      stroke: new Stroke({
-        color: "#3498db", // color-selection
-        width: 5,
-      }),
-    });
+    const styleCache = new globalThis.Map<string, Style>();
 
     function liftStyle(feature: FeatureLike) {
+      let color = "#555";
       switch (feature.get(STATUS)) {
         case LiftStatus.Correct:
-          return correctStyle;
-        case LiftStatus.Hovered:
-          return hoveredStyle;
-        default:
-          return unknownStyle;
+          color = "#2ecc71"; // color-success
+          break;
+        case LiftStatus.Missed:
+          color = "#ff3838"; // color-error
+          break;
       }
+
+      const width = feature.get(HOVERED) ? 5 : 3;
+      const key = `${color}-${width}`;
+      let style = styleCache.get(key);
+
+      if (!style) {
+        style = new Style({
+          stroke: new Stroke({ color, width }),
+        });
+        styleCache.set(key, style);
+      }
+
+      return style;
     }
 
     // create a list of features
@@ -309,16 +338,12 @@ export default function Game({ resort }: GameProps) {
 
       // Mouse left previous lift
       if (previousFeature) {
-        if (previousFeature.get(STATUS) === LiftStatus.Hovered) {
-          previousFeature.set(STATUS, LiftStatus.Inactive);
-        }
+        previousFeature.set(HOVERED, false);
       }
 
       // Mouse entered new lift
       if (feature) {
-        if (feature.get(STATUS) !== LiftStatus.Correct) {
-          feature.set(STATUS, LiftStatus.Hovered);
-        }
+        feature.set(HOVERED, true);
       }
 
       hoveredFeatureRef.current = feature ?? null;
@@ -356,12 +381,11 @@ export default function Game({ resort }: GameProps) {
             ${incorrectGuess ? "animate-shake border-error" : "border-background focus:border-selection"}`} />
         : gameState === GameState.Solved
           ? <span className="z-2 mt-10 h-fit p-3 bg-success col-start-2 col-span-2 flex items-center justify-center rounded-md">You got it!</span>
-          : <span className="z-2 mt-10 h-fit p-3 bg-background col-start-2 col-span-2 flex items-center justify-center rounded-md">You found {percentageSolved}%!</span>
+          : <CompletionBar percentage={percentageSolved} />
       }
-      {/* TODO: "progress bar that show the amount of lifts gotten*/}
       <span className={`z-2 mt-5 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
         justify-center rounded-md bg-success transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
-      <SidePanel nLifts={resort.n_lifts} discovered={discoveredLifts} revealed={revealedLifts} revealAll={revealRest} />
+      <SidePanel nLifts={resort.n_lifts} discovered={discoveredLifts} revealed={revealedLifts} onLiftHovered={onListLiftHovered} onLiftSelected={onListLiftSelected} revealAll={revealRest} />
     </main>
   </>;
 }
