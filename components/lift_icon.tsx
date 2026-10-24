@@ -1,7 +1,25 @@
 
+import { LiftType } from "openskidata-format";
 import type { ReactElement } from "react";
 
-const iconPaths: Record<string, ReactElement> = {
+const unknown = <g fill="currentColor" stroke="none">
+  <path d="M24.3,6A11.2,11.2,0,0,0,16,9.3a11,11,0,0,0-3.5,8.2,2.5,2.5,0,0,0,5,0,6.5,6.5,0,0,1,2-4.7A6.2,6.2,0,0,1,24.2,11a6.5,6.5,0,0,1,1,12.9,4.4,4.4,0,0,0-3.7,4.4v3.2a2.5,2.5,0,0,0,5,0V28.7a11.6,11.6,0,0,0,9-11.5A11.7,11.7,0,0,0,24.3,6Z" />
+  <circle cx="24" cy="39.5" r="2.5" />
+</g>;
+
+const dragLift = <g transform="translate(5.000000,52.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
+  <path d="M284 439 l-72 -72 -82 12 c-63 10 -85 10 -96 0 -18 -15 -19 -130 -2
+-147 7 -7 13 -20 13 -30 0 -10 8 -17 19 -17 19 0 102 -79 106 -100 1 -5 -26
+-19 -59 -30 -70 -23 -93 -40 -29 -20 177 53 285 89 296 97 6 6 12 18 12 26 0
+14 -2 14 -12 -1 -7 -9 -44 -27 -83 -40 l-69 -24 -56 60 c-30 33 -56 63 -58 67
+-5 12 90 111 115 121 13 5 22 13 19 17 -3 5 11 24 30 43 46 44 98 109 87 109
+-4 0 -40 -32 -79 -71z m-102 -98 c5 -4 -15 -29 -42 -56 l-50 -49 0 61 0 61 43
+-5 c23 -3 45 -9 49 -12z"/>
+  <path d="M29 454 c-17 -21 0 -49 32 -49 27 0 37 28 19 50 -16 19 -34 19 -51 -1z"/>
+</g>;
+
+const iconPaths: Record<LiftType, ReactElement> = {
+  cable_car: unknown,
   gondola: (<g transform="translate(1.000000,52.000000) scale(0.100000,-0.100000)"
     fill="currentColor" stroke="none">
     <path d="M206 431 c-105 -37 -192 -73 -194 -79 -6 -18 8 -15 129 28 62 22 116
@@ -23,18 +41,12 @@ const iconPaths: Record<string, ReactElement> = {
 -44 13 -42 7 3 13 29 15 71 l3 67 -35 0 c-34 0 -35 1 -38 43 -3 37 -6 42 -30
 45 -22 3 -29 -2 -33 -21z"/>
   </g>),
-  drag_lift: (<g transform="translate(5.000000,52.000000) scale(0.100000,-0.100000)"
-    fill="currentColor" stroke="none">
-    <path d="M284 439 l-72 -72 -82 12 c-63 10 -85 10 -96 0 -18 -15 -19 -130 -2
--147 7 -7 13 -20 13 -30 0 -10 8 -17 19 -17 19 0 102 -79 106 -100 1 -5 -26
--19 -59 -30 -70 -23 -93 -40 -29 -20 177 53 285 89 296 97 6 6 12 18 12 26 0
-14 -2 14 -12 -1 -7 -9 -44 -27 -83 -40 l-69 -24 -56 60 c-30 33 -56 63 -58 67
--5 12 90 111 115 121 13 5 22 13 19 17 -3 5 11 24 30 43 46 44 98 109 87 109
--4 0 -40 -32 -79 -71z m-102 -98 c5 -4 -15 -29 -42 -56 l-50 -49 0 61 0 61 43
--5 c23 -3 45 -9 49 -12z"/>
-    <path d="M29 454 c-17 -21 0 -49 32 -49 27 0 37 28 19 50 -16 19 -34 19 -51
--1z"/>
-  </g>),
+  mixed_lift: unknown,
+  drag_lift: dragLift,
+  "t-bar": dragLift,
+  "j-bar": dragLift,
+  platter: dragLift,
+  rope_tow: dragLift,
   magic_carpet: (<g transform="translate(0.000000, 52.000000) scale(0.100000,-0.100000)"
     fill="currentColor" stroke="none">
     <path d="M250 485 c-18 -21 -8 -50 19 -53 37 -6 52 26 25 52 -19 20 -28 20
@@ -58,22 +70,20 @@ const iconPaths: Record<string, ReactElement> = {
     <path d="M478 183 c6 -2 18 -2 25 0 6 3 1 5 -13 5 -14 0 -19 -2 -12 -5z" />
     <path d="M68 33 c18 -2 45 -2 60 0 15 2 0 4 -33 4 -33 0 -45 -2 -27 -4z" />
   </g>),
-  unknown: (<g fill="currentColor" stroke="none">
-    <path d="M24.3,6A11.2,11.2,0,0,0,16,9.3a11,11,0,0,0-3.5,8.2,2.5,2.5,0,0,0,5,0,6.5,6.5,0,0,1,2-4.7A6.2,6.2,0,0,1,24.2,11a6.5,6.5,0,0,1,1,12.9,4.4,4.4,0,0,0-3.7,4.4v3.2a2.5,2.5,0,0,0,5,0V28.7a11.6,11.6,0,0,0,9-11.5A11.7,11.7,0,0,0,24.3,6Z" />
-    <circle cx="24" cy="39.5" r="2.5" />
-  </g>)
+  funicular: unknown,
+  railway: unknown,
 };
 
 interface LiftIconProps {
-  liftType: string,
+  liftType: LiftType,
   className?: string,
 }
 
 export default function LiftIcon({ liftType, className }: LiftIconProps) {
   return <svg
     className={`inline ${className || ""}`}
-    viewBox="0 0 52.000000 52.000000"
+    viewBox="0 0 52 52"
     preserveAspectRatio="xMidYMid meet">
-    {iconPaths[liftType] || iconPaths.unknown}
+    {iconPaths[liftType]}
   </svg>
 }
