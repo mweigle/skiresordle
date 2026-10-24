@@ -204,6 +204,19 @@ export default function Game({ resort }: GameProps) {
     setGameState(GameState.GaveUp);
   }
 
+  function resetGame() {
+    const liftFeatures = liftLayerRef.current?.getSource()?.getFeatures();
+    if (liftFeatures) {
+      for (const lift of liftFeatures) {
+        lift.set(STATUS, LiftStatus.Inactive);
+      }
+    }
+    setDiscoveredLifts([]);
+    setRevealedLifts([]);
+    setPercentageSolved(0);
+    setGameState(GameState.Playing);
+  }
+
   function onListLiftHovered(liftId: string) {
     const lift = liftLayerRef.current?.getSource()?.getFeatureById(liftId);
     if (lift) {
@@ -228,7 +241,7 @@ export default function Game({ resort }: GameProps) {
     const styleCache = new globalThis.Map<string, Style>();
 
     function liftStyle(feature: FeatureLike) {
-      let color = "#555";
+      let color = "#505050";
       switch (feature.get(STATUS)) {
         case LiftStatus.Correct:
           color = "#2ecc71"; // color-success
@@ -384,7 +397,14 @@ export default function Game({ resort }: GameProps) {
       }
       <span className={`z-2 mt-5 h-fit p-3 row-start-2 col-start-2 col-span-2 w-1/3 justify-self-center flex items-center
         justify-center rounded-md bg-success transition-opacity duration-300 ${alreadyFound ? "visible opacity-100" : "invisible opacity-0"}`}>Already found!</span>
-      <SidePanel nLifts={resort.n_lifts} discovered={discoveredLifts} revealed={revealedLifts} onLiftHovered={onListLiftHovered} onLiftSelected={onListLiftSelected} revealAll={revealRest} />
+      <SidePanel nLifts={resort.n_lifts}
+        discovered={discoveredLifts}
+        revealed={revealedLifts}
+        onLiftHovered={onListLiftHovered}
+        onLiftSelected={onListLiftSelected}
+        revealAll={revealRest}
+        reset={resetGame}
+      />
     </main>
   </>;
 }
