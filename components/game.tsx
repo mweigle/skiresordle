@@ -1,6 +1,6 @@
 "use client"
 
-import { ResortWithLifts } from "@/lib/lift_data";
+import { Lift, ResortWithLifts } from "@/lib/lift_data";
 import Fuse from "fuse.js";
 import { defaults as defaultControls } from "ol/control/defaults";
 import { extend, Extent } from "ol/extent";
@@ -13,7 +13,6 @@ import "ol/ol.css";
 import VectorSource from "ol/source/Vector";
 import Stroke from "ol/style/Stroke";
 import Style from "ol/style/Style";
-import { LiftProperties } from "openskidata-format";
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import SidePanel from "./side_panel";
 import Link from "next/link";
@@ -92,11 +91,11 @@ export default function Game({ resort }: GameProps) {
   const mapRef = useRef<Map | null>(null);
   const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const hoveredFeatureRef = useRef<Feature | null>(null);
-  const searchRef = useRef<Fuse<LiftProperties> | null>(null);
+  const searchRef = useRef<Fuse<Lift> | null>(null);
 
   const [liftName, setLiftName] = useState("");
-  const [discoveredLifts, setDiscoveredLifts] = useState<LiftProperties[]>([]);
-  const [revealedLifts, setRevealedLifts] = useState<LiftProperties[]>([]);
+  const [discoveredLifts, setDiscoveredLifts] = useState<Lift[]>([]);
+  const [revealedLifts, setRevealedLifts] = useState<Lift[]>([]);
   const [percentageSolved, setPercentageSolved] = useState(0);
 
   const [incorrectGuess, setIncorrectGuess] = useState(false);
@@ -256,7 +255,7 @@ export default function Game({ resort }: GameProps) {
     // create a list of features
     const liftList = resort.lifts.features.map(feature => feature.properties);
 
-    const search = new Fuse<LiftProperties>(liftList, {
+    const search = new Fuse<Lift>(liftList, {
       keys: ["name"],
       threshold: 1, // TODO: this may be pointless with the new filtering logic
     });

@@ -1,10 +1,10 @@
-import { LiftProperties } from "openskidata-format";
+import { Lift } from "@/lib/lift_data";
 import DiscoveredLift from "./discovered_lift";
 
 interface SidePanelProps {
   nLifts: number,
-  discovered: LiftProperties[],
-  revealed: LiftProperties[],
+  discovered: Lift[],
+  revealed: Lift[],
   onLiftHovered: (liftId: string) => void,
   onLiftSelected: (liftId: string) => void,
   revealAll: () => void,

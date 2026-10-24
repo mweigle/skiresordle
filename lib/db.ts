@@ -1,24 +1,25 @@
 import SqliteDatabase, { Database, Statement } from "better-sqlite3";
 
-export interface DbResort {
-    id: string,
-    name: string,
-    n_lifts: number,
-    lifts_geojson: string,
-}
-
 export interface ResortIdent {
     id: string,
     name: string,
     n_lifts: number,
 }
 
+export interface DbLift {
+    id: number,
+    name: string,
+    lift_type: string,
+    geometry: string,
+}
+
 interface SkiresordleDatabase {
     engine: Database,
-    getLiftsByIdStmt: Statement<string, DbResort>,
-    getLiftsByNameStmt: Statement<string, DbResort>,
-    getResortsStmt: Statement<[], ResortIdent>,
-    getResortSearchStmt: Statement<string, ResortIdent>,
+    getResortByIdStmt: Statement<string, ResortIdent>,
+    getResortByNameStmt: Statement<string, ResortIdent>,
+    initialResortsStmt: Statement<[], ResortIdent>,
+    searchResortsStmt: Statement<string, ResortIdent>,
+    getLiftsByResortIdStmt: Statement<string, DbLift>,
 }
 
 let db: SkiresordleDatabase | null = null;
@@ -30,32 +31,38 @@ function getDatabase(): SkiresordleDatabase {
 
         db = {
             engine,
-            getLiftsByIdStmt: engine.prepare("SELECT id, name, n_lifts, lifts_geojson FROM resorts WHERE id = ?"),
-            getLiftsByNameStmt: engine.prepare("SELECT id, name, n_lifts, lifts_geojson FROM resorts WHERE name = ?"),
-            getResortsStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts ORDER BY n_lifts DESC LIMIT 50"),
-            getResortSearchStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts WHERE name LIKE ? LIMIT 50"),
+            getResortByIdStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts WHERE id = ?"),
+            getResortByNameStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts WHERE name = ?"),
+            initialResortsStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts ORDER BY n_lifts DESC LIMIT 50"),
+            searchResortsStmt: engine.prepare("SELECT id, name, n_lifts FROM resorts WHERE name LIKE ? LIMIT 50"),
+            getLiftsByResortIdStmt: engine.prepare("SELECT id, name, lift_type, geometry FROM lifts WHERE resort_id = ?"),
         };
     }
     return db;
 }
 
-export function getLiftsForResortName(name: string): DbResort | undefined {
-    const resort = getDatabase().getLiftsByNameStmt.get(name);
+export function getResortByName(name: string): ResortIdent | undefined {
+    const resort = getDatabase().getResortByNameStmt.get(name);
     return resort;
 }
 
-export function getLiftsForResortId(id: string): DbResort | undefined {
-    const resort = getDatabase().getLiftsByIdStmt.get(id);
+export function getResortById(id: string): ResortIdent | undefined {
+    const resort = getDatabase().getResortByIdStmt.get(id);
     return resort;
 }
 
 export function getResorts(): ResortIdent[] {
-    const rows = getDatabase().getResortsStmt.all();
+    const rows = getDatabase().initialResortsStmt.all();
     return rows;
 }
 
 export function searchResorts(query: string): ResortIdent[] {
     const pattern = `%${query}%`;
-    const rows = getDatabase().getResortSearchStmt.all(pattern);
+    const rows = getDatabase().searchResortsStmt.all(pattern);
+    return rows;
+}
+
+export function getLiftsByResortId(id: string): DbLift[] {
+    const rows = getDatabase().getLiftsByResortIdStmt.all(id);
     return rows;
 }

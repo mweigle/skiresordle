@@ -85,10 +85,7 @@ function indexUsableLifts(
             const duplicateByName = skiAreaLifts.find(other => other.properties.name === properties.name);
             if (duplicateByName) {
                 // duplicate names do occur, primarily in railways/funiculars (e.g. Parsenbahn (Parsenn))
-                duplicateByName.geometry = {
-                    type: "MultiLineString",
-                    coordinates: mergeCoordinates(lift.geometry, duplicateByName.geometry),
-                }; // XXX: bbox does not get fixed, is currently unused though
+                duplicateByName.geometry = mergeGeometries(lift.geometry, duplicateByName.geometry);
             } else {
                 skiAreaLifts.push(lift);
             }
@@ -101,11 +98,15 @@ function indexUsableLifts(
     return liftsBySkiArea;
 }
 
-function mergeCoordinates(a: LiftGeometry, b: LiftGeometry): Position[][] {
+function mergeGeometries(a: LiftGeometry, b: LiftGeometry): LiftGeometry {
     const getLineStrings = (geometry: LiftGeometry): Position[][] =>
         geometry.type === "LineString" ? [geometry.coordinates] : geometry.coordinates;
 
-    return [...getLineStrings(a), ...getLineStrings(b)];
+    // XXX: bbox does not get fixed, is currently unused though
+    return {
+        type: "MultiLineString",
+        coordinates: [...getLineStrings(a), ...getLineStrings(b)]
+    };
 }
 
 function simplifyLiftGeometry(geometry: LiftGeometry): LiftGeometry {
@@ -169,13 +170,22 @@ function createDatabase(
             CREATE TABLE resorts (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                n_lifts INTEGER NOT NULL,
-                lifts_geojson TEXT NOT NULL
-            )
+                n_lifts INTEGER NOT NULL
+            );
+            CREATE TABLE lifts (
+                id INTEGER PRIMARY KEY,
+                resort_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                lift_type TEXT,
+                geometry TEXT NOT NULL
+            );
         `);
 
-        const insertResort = database.prepare<[string, string, number, string]>(
-            "INSERT INTO resorts (id, name, n_lifts, lifts_geojson) VALUES (?, ?, ?, ?)"
+        const insertResort = database.prepare<[string, string, number]>(
+            "INSERT INTO resorts (id, name, n_lifts) VALUES (?, ?, ?)"
+        );
+        const insertLift = database.prepare<[string, string, string, string]>(
+            "INSERT INTO lifts (resort_id, name, lift_type, geometry) VALUES (?, ?, ?, ?)"
         );
         const insertResorts = database.transaction(() => {
             for (const skiArea of skiAreas.features) {
@@ -194,12 +204,12 @@ function createDatabase(
                     continue;
                 }
 
-                const liftsGeoJson = JSON.stringify({
-                    type: "FeatureCollection",
-                    features: areaLifts,
-                });
                  // TODO: find a way to put stable IDs, maybe hash the name or smth...
-                insertResort.run(properties.id, properties.name, areaLifts.length, liftsGeoJson);
+                insertResort.run(properties.id, properties.name, areaLifts.length);
+                for (const lift of areaLifts) {
+                    const geometryString = JSON.stringify(lift.geometry);
+                    insertLift.run(properties.id, lift.properties.name!, lift.properties.liftType, geometryString);
+                }
                 resortCount++;
             }
         });

@@ -1,7 +1,8 @@
-import { LiftProperties, LiftType } from "openskidata-format";
+import { LiftType } from "openskidata-format";
 import LiftIcon from "./lift_icon";
+import { Lift } from "@/lib/lift_data";
 
-export default function DiscoveredLift({ lift, revealed = false }: { lift: LiftProperties, revealed?: boolean }) {
+export default function DiscoveredLift({ lift, revealed = false }: { lift: Lift, revealed?: boolean }) {
   let liftType;
   switch (lift.liftType) {
     case LiftType.JBar:
