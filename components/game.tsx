@@ -6,14 +6,13 @@ import Link from "next/link";
 import { extend } from "ol/extent";
 import { KeyboardEvent, startTransition, useEffect, useRef, useState } from "react";
 import CompletionBar from "./completion_bar";
-import { createGameMap, GameMap, HOVERED, LiftStatus, STATUS } from "./game_map";
+import { GameMap, LiftStatus } from "./game_map";
 import SidePanel from "./side_panel";
-
-const MAX_NAME_DISTANCE = 2;
 
 // TODO: AI slop, make better this work better
 // (e.g. accept the lift if 3 out of 4 words are correct
 // (prevent annoyance on really long lift names like the ones in whistler))
+const MAX_NAME_DISTANCE = 2;
 function editDistance(first: string, second: string) {
   const left = first.trim().toLowerCase();
   const right = second.trim().toLowerCase();
@@ -71,6 +70,7 @@ const STORAGE_KEY_NDISCOVERED = "_n_discovered";
 export default function Game({ resort }: GameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<GameMap | null>(null);
+  const mapElemRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<Fuse<Lift> | null>(null);
 
   const [liftName, setLiftName] = useState("");
@@ -118,20 +118,12 @@ export default function Game({ resort }: GameProps) {
     if (!map) {
       return;
     }
-    const source = map.liftSource;
 
     // mark all the features that comprise this lift
     let focusExtent;
     for (const lift of lifts) {
-      const feature = source.getFeatureById(lift.id);
-      if (!feature) {
-        console.error("Could not find feature:", lift.id);
-        continue;
-      }
-
-      feature.set(STATUS, LiftStatus.Correct);
-
-      const extent = feature.getGeometry()?.getExtent();
+      map.setLiftStatus(lift.id, LiftStatus.Correct);
+      const extent = map.getLiftExtent(lift.id);
       if (extent && focusExtent) {
         extend(focusExtent, extent);
       } else {
@@ -142,9 +134,8 @@ export default function Game({ resort }: GameProps) {
     const totalFound = discoveredLifts.length + lifts.length;
     if (totalFound >= resort.n_lifts) {
       setGameState(GameState.Solved);
-      focusExtent = source.getExtent(); // focus the entire map
-    }
-    if (focusExtent) {
+      map.zoomOut();
+    } else if (focusExtent) {
       map.setFocus(focusExtent);
     }
 
@@ -158,30 +149,21 @@ export default function Game({ resort }: GameProps) {
       .filter(lift => !discoveredLifts.some(discovered => lift.id === discovered.id))
       .map(lift => lift.properties);
 
+    missedLifts.sort((a, b) => a.name.localeCompare(b.name));
+
     const map = mapRef.current;
     if (map) {
       for (const lift of missedLifts) {
-        const feature = map.liftSource.getFeatureById(lift.id);
-        if (!feature) {
-          console.error("Could not find feature:", lift.id);
-          continue;
-        }
-
-        feature.set(STATUS, LiftStatus.Missed);
+        map.setLiftStatus(lift.id, LiftStatus.Missed);
       }
-      map.setFocus(map.liftSource.getExtent()!);
+      map.zoomOut();
     }
     setRevealedLifts(missedLifts);
     setGameState(GameState.GaveUp);
   }
 
   function resetGame() {
-    const liftFeatures = mapRef.current?.liftSource.getFeatures();
-    if (liftFeatures) {
-      for (const lift of liftFeatures) {
-        lift.set(STATUS, LiftStatus.Inactive);
-      }
-    }
+    mapRef.current?.setAllLiftsStatus(LiftStatus.Inactive);
     setDiscoveredLifts([]);
     setRevealedLifts([]);
     setGameState(GameState.Playing);
@@ -190,24 +172,11 @@ export default function Game({ resort }: GameProps) {
   }
 
   function onListLiftHovered(liftId: number) {
-    const lift = mapRef.current?.liftSource.getFeatureById(liftId);
-    if (lift) {
-      lift.set(HOVERED, true);
-    }
+    mapRef.current?.setLiftHovered(liftId);
   }
 
   function onListLiftSelected(liftId: number) {
-    const map = mapRef.current;
-    if (!map) {
-      return;
-    }
-    const extent = map.liftSource
-      ?.getFeatureById(liftId)
-      ?.getGeometry()
-      ?.getExtent(); // XXX: this might be slow ...
-    if (extent) {
-      map.setFocus(extent);
-    }
+    mapRef.current?.setLiftFocus(liftId, 16);
   }
 
   function addDiscoveredLifts(lifts: Lift[], nDiscovered: number) {
@@ -227,49 +196,38 @@ export default function Game({ resort }: GameProps) {
   useEffect(() => {
     inputRef.current?.focus();
 
-    // create a list of features
+    // create a list of properties for searching
     const liftList = resort.lifts.features.map(feature => feature.properties);
-
     const search = new Fuse<Lift>(liftList, {
       keys: ["name"],
       threshold: 1, // TODO: this may be pointless with the new filtering logic
     });
-
     searchRef.current = search;
 
-    const target = document.getElementById("map");
-    if (!target) {
+    const mapElem = mapElemRef.current;
+    if (!mapElem) {
       throw new Error("Could not find map target element");
     }
 
-    const gameMap = createGameMap(target, resort.lifts);
+    // initialize the OpenLayers map
+    const gameMap = new GameMap(mapElem, resort.lifts);
     mapRef.current = gameMap;
 
-    function loadDiscoveredFromLocalStorage(): Lift[] {
-      const encodedLifts = globalThis.localStorage.getItem(resort.id + STORAGE_KEY_LIFTS);
-      const lifts: Lift[] = [];
-      if (encodedLifts) {
-        const uniqueIds = new Set<string>();
-        for (const idStr of encodedLifts.split(';')) {
-          if (uniqueIds.has(idStr)) {
-            continue;
-          }
-          uniqueIds.add(idStr);
-          const lift = resort.lifts.features.find(lift => lift.id === +idStr);
-          if (lift) {
-            lifts.push(lift.properties);
-          }
+    // get the previous state from localStorage
+    const encodedLifts = localStorage.getItem(resort.id + STORAGE_KEY_LIFTS);
+    const discovered: Lift[] = [];
+    if (encodedLifts) {
+      const uniqueIds = new Set<string>();
+      for (const idStr of encodedLifts.split(';')) {
+        if (uniqueIds.has(idStr)) {
+          continue;
         }
-      }
-      return lifts;
-    }
-
-    // get previous state from localStorage
-    const discovered = loadDiscoveredFromLocalStorage();
-    for (const lift of discovered) {
-      const feature = gameMap.liftSource.getFeatureById(lift.id);
-      if (feature) {
-        feature.set(STATUS, LiftStatus.Correct);
+        uniqueIds.add(idStr);
+        const lift = resort.lifts.features.find(lift => lift.properties.id === +idStr);
+        if (lift) {
+          discovered.push(lift.properties);
+          gameMap.setLiftStatus(lift.properties.id, LiftStatus.Correct);
+        }
       }
     }
     startTransition(() => setDiscoveredLifts(discovered));
@@ -284,7 +242,7 @@ export default function Game({ resort }: GameProps) {
   }, [resort]);
 
   return <>
-    <div id="map" className="absolute inset-0 z-1"></div>
+    <div ref={mapElemRef} className="absolute inset-0 z-1"></div>
     <main className="grid h-dvh grid-cols-4 grid-rows-[auto_minmax(0,1fr)]">
       <div className="z-2 mt-10 col-start-1 flex items-center justify-center">
         <Link href="/" className="p-3 bg-background rounded-md border-2 border-background hover:border-selection mr-3">&larr;</Link>

@@ -58,7 +58,8 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
   }
 
   function nLiftsText(resort: ResortIdent): string {
-    const nDiscovered = localStorage.getItem(resort.id + "_n_discovered");
+    // NOTE: "?" behind local storage because this component also gets SSR-ed as part of the front page
+    const nDiscovered = localStorage?.getItem(resort.id + "_n_discovered");
     if (nDiscovered) {
       return `${nDiscovered}/${resort.n_lifts} Lifts`;
     }
