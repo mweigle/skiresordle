@@ -57,6 +57,14 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
     return "/" + (id >>> 0).toString(10).padStart(10, "0");
   }
 
+  function nLiftsText(resort: ResortIdent): string {
+    const nDiscovered = localStorage.getItem(resort.id + "_n_discovered");
+    if (nDiscovered) {
+      return `${nDiscovered}/${resort.n_lifts} Lifts`;
+    }
+    return `${resort.n_lifts} Lifts`;
+  }
+
   return <main className="flex flex-col items-center">
     <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter} autoComplete="off"
       className="w-1/2 mt-10 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
@@ -64,7 +72,7 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
       {filteredResorts.map(resort => <li key={resort.id}>
         <Link href={resortLink(resort.id)} className="flex justify-between p-3 border-2 rounded-md border-background hover:border-selection">
           <span>{resort.name}</span>
-          <span>{resort.n_lifts} Lifts</span>
+          <span>{nLiftsText(resort)}</span>
         </Link>
       </li>)}
     </ul>

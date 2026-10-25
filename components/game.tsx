@@ -65,9 +65,10 @@ interface GameProps {
   resort: ResortWithLifts,
 }
 
-export default function Game({ resort }: GameProps) {
-  const storageKey = `discovered_${resort.id}`;
+const STORAGE_KEY_LIFTS = "_lifts";
+const STORAGE_KEY_NDISCOVERED = "_n_discovered";
 
+export default function Game({ resort }: GameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<GameMap | null>(null);
   const searchRef = useRef<Fuse<Lift> | null>(null);
@@ -119,8 +120,6 @@ export default function Game({ resort }: GameProps) {
     }
     const source = map.liftSource;
 
-    console.log("amount of discovered lifts", lifts.length);
-
     // mark all the features that comprise this lift
     let focusExtent;
     for (const lift of lifts) {
@@ -149,7 +148,7 @@ export default function Game({ resort }: GameProps) {
       map.setFocus(focusExtent);
     }
 
-    addDiscoveredLifts(lifts);
+    addDiscoveredLifts(lifts, totalFound);
     setLiftName("");
   }
 
@@ -186,7 +185,8 @@ export default function Game({ resort }: GameProps) {
     setDiscoveredLifts([]);
     setRevealedLifts([]);
     setGameState(GameState.Playing);
-    localStorage.removeItem(storageKey);
+    localStorage.removeItem(resort.id + STORAGE_KEY_LIFTS);
+    localStorage.removeItem(resort.id + STORAGE_KEY_NDISCOVERED);
   }
 
   function onListLiftHovered(liftId: number) {
@@ -210,13 +210,14 @@ export default function Game({ resort }: GameProps) {
     }
   }
 
-  function addDiscoveredLifts(lifts: Lift[]) {
+  function addDiscoveredLifts(lifts: Lift[], nDiscovered: number) {
     setDiscoveredLifts(prev => [...lifts, ...prev]);
 
     // update local storage
-    const prev = localStorage.getItem(storageKey);
+    const prev = localStorage.getItem(resort.id + STORAGE_KEY_LIFTS);
     const newIds = lifts.map(lift => lift.id).join(";");
-    localStorage.setItem(storageKey, prev ? `${prev};${newIds}` : newIds);
+    localStorage.setItem(resort.id + STORAGE_KEY_LIFTS, prev ? `${prev};${newIds}` : newIds);
+    localStorage.setItem(resort.id + STORAGE_KEY_NDISCOVERED, nDiscovered.toString(10))
   }
 
   function calcPercentageSolved() {
@@ -245,7 +246,7 @@ export default function Game({ resort }: GameProps) {
     mapRef.current = gameMap;
 
     function loadDiscoveredFromLocalStorage(): Lift[] {
-      const encodedLifts = globalThis.localStorage.getItem(storageKey);
+      const encodedLifts = globalThis.localStorage.getItem(resort.id + STORAGE_KEY_LIFTS);
       const lifts: Lift[] = [];
       if (encodedLifts) {
         const uniqueIds = new Set<string>();
@@ -280,7 +281,7 @@ export default function Game({ resort }: GameProps) {
       gameMap.dispose();
       mapRef.current = null;
     };
-  }, [resort, storageKey]);
+  }, [resort]);
 
   return <>
     <div id="map" className="absolute inset-0 z-1"></div>

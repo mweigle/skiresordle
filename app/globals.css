@@ -19,6 +19,7 @@
 
 @theme {
   --animate-shake: shake 0.2s ease-in-out infinite;
+  --animate-progress-fill: progress-fill 0.8s ease-out both;
 
   @keyframes shake {
     0%,
@@ -34,14 +35,17 @@
       transform: translateX(3px);
     }
   }
-}
 
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  @keyframes progress-fill {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: scaleX(1);
+    }
   }
-} */
+}
 
 body {
   background: var(--background);
