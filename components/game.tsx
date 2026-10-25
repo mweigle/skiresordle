@@ -3,7 +3,7 @@
 import { Lift, ResortWithLifts } from "@/lib/lift_data";
 import Fuse from "fuse.js";
 import Link from "next/link";
-import { extend, Extent } from "ol/extent";
+import { extend } from "ol/extent";
 import { KeyboardEvent, startTransition, useEffect, useRef, useState } from "react";
 import CompletionBar from "./completion_bar";
 import { createGameMap, GameMap, HOVERED, LiftStatus, STATUS } from "./game_map";
@@ -113,10 +113,11 @@ export default function Game({ resort }: GameProps) {
       return;
     }
 
-    const source = mapRef.current?.liftSource;
-    if (!source) {
+    const map = mapRef.current;
+    if (!map) {
       return;
     }
+    const source = map.liftSource;
 
     console.log("amount of discovered lifts", lifts.length);
 
@@ -145,19 +146,11 @@ export default function Game({ resort }: GameProps) {
       focusExtent = source.getExtent(); // focus the entire map
     }
     if (focusExtent) {
-      setMapFocus(focusExtent);
+      map.setFocus(focusExtent);
     }
 
     addDiscoveredLifts(lifts);
     setLiftName("");
-  }
-
-  function setMapFocus(extent: Extent) {
-    mapRef.current?.map.getView().fit(extent, {
-      padding: [200, 200, 200, 200],
-      duration: 500,
-      maxZoom: 14,
-    });
   }
 
   // for when the user gives up
@@ -166,10 +159,10 @@ export default function Game({ resort }: GameProps) {
       .filter(lift => !discoveredLifts.some(discovered => lift.id === discovered.id))
       .map(lift => lift.properties);
 
-    const liftSource = mapRef.current?.liftSource;
-    if (liftSource) {
+    const map = mapRef.current;
+    if (map) {
       for (const lift of missedLifts) {
-        const feature = liftSource.getFeatureById(lift.id);
+        const feature = map.liftSource.getFeatureById(lift.id);
         if (!feature) {
           console.error("Could not find feature:", lift.id);
           continue;
@@ -177,7 +170,7 @@ export default function Game({ resort }: GameProps) {
 
         feature.set(STATUS, LiftStatus.Missed);
       }
-      setMapFocus(liftSource.getExtent()!);
+      map.setFocus(map.liftSource.getExtent()!);
     }
     setRevealedLifts(missedLifts);
     setGameState(GameState.GaveUp);
@@ -204,12 +197,16 @@ export default function Game({ resort }: GameProps) {
   }
 
   function onListLiftSelected(liftId: number) {
-    const extent = mapRef.current?.liftSource
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+    const extent = map.liftSource
       ?.getFeatureById(liftId)
       ?.getGeometry()
       ?.getExtent(); // XXX: this might be slow ...
     if (extent) {
-      setMapFocus(extent);
+      map.setFocus(extent);
     }
   }
 

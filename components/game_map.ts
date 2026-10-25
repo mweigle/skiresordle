@@ -1,5 +1,6 @@
 import { FeatureCollection, Lift } from "@/lib/lift_data";
 import { defaults as defaultControls } from "ol/control/defaults";
+import { Extent } from "ol/extent";
 import Feature, { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
@@ -27,6 +28,7 @@ const MAP_ATTRIBUTION = 'Data from OpenSkiData / <a href="https://openskimap.org
 export interface GameMap {
   map: Map;
   liftSource: VectorSource;
+  setFocus: (extent: Extent) => void;
   dispose: () => void;
 }
 
@@ -141,6 +143,13 @@ export function createGameMap(
   return {
     map,
     liftSource,
+    setFocus(extent: Extent) {
+      map.getView().fit(extent, {
+        padding: [200, 200, 200, 200],
+        duration: 500,
+        maxZoom: 14,
+      });
+    },
     dispose() {
       map.un("pointermove", handlePointerMove);
       map.setTarget(undefined);

@@ -4,7 +4,6 @@ import { initialResorts } from "@/lib/db";
 export default function Home() {
   // TODO: remaining icons
   // TODO: lookups besser machen
-  // TODO: local storage
   // TODO: list <-> map interaction
   //  - zoom deeper into a focussed lift.
   //  - remove focus thickness when mouse leaves
