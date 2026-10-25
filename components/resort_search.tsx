@@ -3,7 +3,7 @@
 import { action_searchResorts } from "@/lib/actions";
 import { ResortIdent } from "@/lib/db";
 import Link from "next/link";
-import { useState, KeyboardEvent, ChangeEvent, useRef } from "react";
+import { useState, KeyboardEvent, ChangeEvent, useEffect, useRef, startTransition } from "react";
 
 const DEBOUNCE_TIME_MS = 400;
 
@@ -14,7 +14,19 @@ interface ResortSearchProps {
 export default function ResortSearch({ initialResorts }: ResortSearchProps) {
   const [resortName, setResortName] = useState("");
   const [filteredResorts, setFilteredResorts] = useState<ResortIdent[]>(initialResorts);
+  const [discoveredCounts, setDiscoveredCounts] = useState<Record<number, string>>({});
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const counts: Record<number, string> = {};
+    for (const resort of filteredResorts) {
+      const count = localStorage.getItem(`${resort.id}_n_discovered`);
+      if (count) {
+        counts[resort.id] = count;
+      }
+    }
+    startTransition(() => setDiscoveredCounts(counts));
+  }, [filteredResorts]);
 
   function onUpdate(e: ChangeEvent<HTMLInputElement>) {
     const name = e.target.value;
@@ -58,8 +70,7 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
   }
 
   function nLiftsText(resort: ResortIdent): string {
-    // NOTE: "?" behind local storage because this component also gets SSR-ed as part of the front page
-    const nDiscovered = localStorage?.getItem(resort.id + "_n_discovered");
+    const nDiscovered = discoveredCounts[resort.id];
     if (nDiscovered) {
       return `${nDiscovered}/${resort.n_lifts} Lifts`;
     }

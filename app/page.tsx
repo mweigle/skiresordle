@@ -3,10 +3,8 @@ import { initialResorts } from "@/lib/db";
 
 export default function Home() {
   // TODO: remaining icons
-  // TODO: lookups besser machen
+  // TODO: fuse / in-game lookups besser machen
   // TODO: list <-> map interaction
-  //  - zoom deeper into a focussed lift.
-  //  - remove focus thickness when mouse leaves
   //  - make relation work both ways
   // TODO: einstellen, welche lift-arten man sehen will? nice to have
   

@@ -160,6 +160,7 @@ export default function Game({ resort }: GameProps) {
     }
     setRevealedLifts(missedLifts);
     setGameState(GameState.GaveUp);
+    clearLocalStorage();
   }
 
   function resetGame() {
@@ -167,6 +168,10 @@ export default function Game({ resort }: GameProps) {
     setDiscoveredLifts([]);
     setRevealedLifts([]);
     setGameState(GameState.Playing);
+    clearLocalStorage();
+  }
+
+  function clearLocalStorage() {
     localStorage.removeItem(resort.id + STORAGE_KEY_LIFTS);
     localStorage.removeItem(resort.id + STORAGE_KEY_NDISCOVERED);
   }
@@ -218,7 +223,9 @@ export default function Game({ resort }: GameProps) {
     const discovered: Lift[] = [];
     if (encodedLifts) {
       const uniqueIds = new Set<string>();
-      for (const idStr of encodedLifts.split(';')) {
+      const idStrings = encodedLifts.split(";");
+      for (let i = idStrings.length - 1; i >= 0; i--) {
+        const idStr = idStrings[i];
         if (uniqueIds.has(idStr)) {
           continue;
         }
