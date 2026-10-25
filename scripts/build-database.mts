@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { SkiAreaActivity, Status } from "openskidata-format";
 import type { LiftFeature, LiftGeometry, SkiAreaFeature } from "openskidata-format";
 import type { Position } from "geojson";
+import { createHash } from "node:crypto";
 
 interface FeatureCollection<T> {
     type: "FeatureCollection";
@@ -158,33 +159,44 @@ function simplifyLineCoordinates(coords: Position[]): Position[] {
     return [coords[0], coords[coords.length - 1]];
 }
 
+function generateId(resortName: string): number {
+    const bytes = createHash("sha256")
+        .update(resortName, "utf8")
+        .digest();
+
+    return bytes.readUInt32BE(0);
+}
+
 function createDatabase(
     skiAreas: FeatureCollection<SkiAreaFeature>,
     liftsBySkiArea: Map<string, LiftFeature[]>
 ): number {
     const database = new Database(temporaryDatabasePath);
     let resortCount = 0;
+    const names = new Set<string>();
 
     try {
         database.exec(`
             CREATE TABLE resorts (
-                id TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
                 n_lifts INTEGER NOT NULL
             );
             CREATE TABLE lifts (
                 id INTEGER PRIMARY KEY,
-                resort_id TEXT NOT NULL,
+                resort_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                lift_type TEXT,
+                lift_type TEXT NOT NULL,
                 geometry TEXT NOT NULL
             );
         `);
+        // XXX: if lookup performance becomes an issue:
+        // CREATE INDEX lifts_IDX_resort_id ON lifts (resort_id);
 
-        const insertResort = database.prepare<[string, string, number]>(
+        const insertResort = database.prepare<[number, string, number]>(
             "INSERT INTO resorts (id, name, n_lifts) VALUES (?, ?, ?)"
         );
-        const insertLift = database.prepare<[string, string, string, string]>(
+        const insertLift = database.prepare<[number, string, string, string]>(
             "INSERT INTO lifts (resort_id, name, lift_type, geometry) VALUES (?, ?, ?, ?)"
         );
         const insertResorts = database.transaction(() => {
@@ -204,11 +216,18 @@ function createDatabase(
                     continue;
                 }
 
-                 // TODO: find a way to put stable IDs, maybe hash the name or smth...
-                insertResort.run(properties.id, properties.name, areaLifts.length);
+                if (names.has(properties.name)) {
+                    // TODO: merge these? just drop them for now
+                    continue;
+                } else {
+                    names.add(properties.name);
+                }
+
+                const id = generateId(properties.name);
+                insertResort.run(id, properties.name, areaLifts.length);
                 for (const lift of areaLifts) {
                     const geometryString = JSON.stringify(lift.geometry);
-                    insertLift.run(properties.id, lift.properties.name!, lift.properties.liftType, geometryString);
+                    insertLift.run(id, lift.properties.name!, lift.properties.liftType, geometryString);
                 }
                 resortCount++;
             }

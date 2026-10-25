@@ -1,7 +1,7 @@
 import SqliteDatabase, { Database, Statement } from "better-sqlite3";
 
 export interface ResortIdent {
-    id: string,
+    id: number,
     name: string,
     n_lifts: number,
 }
@@ -15,11 +15,11 @@ export interface DbLift {
 
 interface SkiresordleDatabase {
     engine: Database,
-    getResortByIdStmt: Statement<string, ResortIdent>,
+    getResortByIdStmt: Statement<number, ResortIdent>,
     getResortByNameStmt: Statement<string, ResortIdent>,
     initialResortsStmt: Statement<[], ResortIdent>,
     searchResortsStmt: Statement<string, ResortIdent>,
-    getLiftsByResortIdStmt: Statement<string, DbLift>,
+    getLiftsByResortIdStmt: Statement<number, DbLift>,
 }
 
 let db: SkiresordleDatabase | null = null;
@@ -27,7 +27,7 @@ let db: SkiresordleDatabase | null = null;
 function getDatabase(): SkiresordleDatabase {
     if (!db) {
         const engine = new SqliteDatabase("./data/openskidata.db");
-        engine.pragma("journal_mode = WAL");
+        engine.pragma("journal_mode = WAL"); // XXX: journal mode should not matter as long as we don't write
 
         db = {
             engine,
@@ -46,12 +46,12 @@ export function getResortByName(name: string): ResortIdent | undefined {
     return resort;
 }
 
-export function getResortById(id: string): ResortIdent | undefined {
+export function getResortById(id: number): ResortIdent | undefined {
     const resort = getDatabase().getResortByIdStmt.get(id);
     return resort;
 }
 
-export function getResorts(): ResortIdent[] {
+export function initialResorts(): ResortIdent[] {
     const rows = getDatabase().initialResortsStmt.all();
     return rows;
 }
@@ -62,7 +62,7 @@ export function searchResorts(query: string): ResortIdent[] {
     return rows;
 }
 
-export function getLiftsByResortId(id: string): DbLift[] {
+export function getLiftsByResortId(id: number): DbLift[] {
     const rows = getDatabase().getLiftsByResortIdStmt.all(id);
     return rows;
 }

@@ -34,7 +34,9 @@ const HOVERED = "hovered";
 const MAX_NAME_DISTANCE = 2;
 const MAP_ATTRIBUTION = 'Data from OpenSkiData / <a href="https://openskimap.org">OpenSkiMap.org</a>, © <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), <a href="https://skimap.org">Skimap.org</a>, Who\'s On First, © Mapterhorn';
 
-// ------------ WARNING: AI slop
+// TODO: AI slop, make better this work better
+// (e.g. accept the lift if 3 out of 4 words are correct
+// (prevent annoyance on really long lift names like the ones in whistler))
 function editDistance(first: string, second: string) {
   const left = first.trim().toLowerCase();
   const right = second.trim().toLowerCase();
@@ -89,7 +91,7 @@ interface GameProps {
 export default function Game({ resort }: GameProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<Map | null>(null);
-  const liftLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const liftSourceRef = useRef<VectorSource | null>(null);
   const hoveredFeatureRef = useRef<Feature | null>(null);
   const searchRef = useRef<Fuse<Lift> | null>(null);
 
@@ -135,7 +137,7 @@ export default function Game({ resort }: GameProps) {
       return;
     }
 
-    const source = liftLayerRef.current?.getSource();
+    const source = liftSourceRef.current;
     if (!source) {
       return;
     }
@@ -187,7 +189,7 @@ export default function Game({ resort }: GameProps) {
       .filter(lift => !discoveredLifts.some(discovered => lift.properties.id === discovered.id))
       .map(lift => lift.properties);
 
-    const liftSource = liftLayerRef.current?.getSource();
+    const liftSource = liftSourceRef.current;
     if (liftSource) {
       for (const lift of missedLifts) {
         const feature = liftSource.getFeatureById(lift.id);
@@ -205,7 +207,7 @@ export default function Game({ resort }: GameProps) {
   }
 
   function resetGame() {
-    const liftFeatures = liftLayerRef.current?.getSource()?.getFeatures();
+    const liftFeatures = liftSourceRef.current?.getFeatures();
     if (liftFeatures) {
       for (const lift of liftFeatures) {
         lift.set(STATUS, LiftStatus.Inactive);
@@ -217,16 +219,15 @@ export default function Game({ resort }: GameProps) {
     setGameState(GameState.Playing);
   }
 
-  function onListLiftHovered(liftId: string) {
-    const lift = liftLayerRef.current?.getSource()?.getFeatureById(liftId);
+  function onListLiftHovered(liftId: number) {
+    const lift = liftSourceRef.current?.getFeatureById(liftId);
     if (lift) {
       lift.set(HOVERED, true);
     }
   }
 
-  function onListLiftSelected(liftId: string) {
-    const extent = liftLayerRef.current
-      ?.getSource()
+  function onListLiftSelected(liftId: number) {
+    const extent = liftSourceRef.current
       ?.getFeatureById(liftId)
       ?.getGeometry()
       ?.getExtent(); // XXX: this might be slow ...
@@ -364,7 +365,7 @@ export default function Game({ resort }: GameProps) {
     olMap.on("pointermove", handlePointerMove);
 
     mapRef.current = olMap;
-    liftLayerRef.current = liftLayer;
+    liftSourceRef.current = liftSource;
 
     // ─────────────────────────
     // CLEANUP
@@ -375,7 +376,7 @@ export default function Game({ resort }: GameProps) {
       olMap.setTarget(undefined);
 
       mapRef.current = null;
-      liftLayerRef.current = null;
+      liftSourceRef.current = null;
       hoveredFeatureRef.current = null;
     };
   }, [resort]);
@@ -385,7 +386,7 @@ export default function Game({ resort }: GameProps) {
     <main className="grid h-dvh grid-cols-4 grid-rows-[auto_minmax(0,1fr)]">
       <div className="z-2 mt-10 col-start-1 flex items-center justify-center">
         <Link href="/" className="p-3 bg-background rounded-md border-2 border-background hover:border-selection mr-3">&larr;</Link>
-        <span className="p-3 bg-background rounded-md border-2 border-background">{resort.name}</span>
+        <span className="p-3 bg-background rounded-md border-2 border-background max-w-3/4 overflow-hidden text-nowrap text-ellipsis">{resort.name}</span>
       </div>
       {gameState === GameState.Playing
         ? <input ref={inputRef} type="text" name="Lift Name" placeholder="Lift Name" value={liftName} onChange={e => setLiftName(e.target.value)} onKeyDown={submitLiftName}

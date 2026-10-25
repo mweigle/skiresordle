@@ -13,17 +13,17 @@ export interface Lift {
 }
 
 export interface ResortWithLifts {
-    id: string,
+    id: number,
     name: string,
     n_lifts: number,
     lifts: FeatureCollection<GeoJSON.Feature<LiftGeometry, Lift>>,
 }
 
 export async function loadResortWithLifts(resortNameOrId: string): Promise<ResortWithLifts | undefined> {
-    const isId = /^[0-9a-f-]+$/.test(resortNameOrId);
+    const id = Number(resortNameOrId);
     let resort;
-    if (isId) {
-        resort = getResortById(resortNameOrId);
+    if (Number.isFinite(id)) {
+        resort = getResortById(id);
     } else {
         resort = getResortByName(resortNameOrId);
     }

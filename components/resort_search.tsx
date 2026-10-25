@@ -52,12 +52,17 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
     }
   }
 
+  // converts the unsigned integer into a string with fixed length of at least 10
+  function resortLink(id: number): string {
+    return "/" + (id >>> 0).toString(10).padStart(10, "0");
+  }
+
   return <main className="flex flex-col items-center">
     <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter} autoComplete="off"
       className="w-1/2 mt-10 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
     <ul className="w-1/2 flex flex-col">
       {filteredResorts.map(resort => <li key={resort.id}>
-        <Link href={`/${resort.id}`} className="flex justify-between p-3 border-2 rounded-md border-background hover:border-selection">
+        <Link href={resortLink(resort.id)} className="flex justify-between p-3 border-2 rounded-md border-background hover:border-selection">
           <span>{resort.name}</span>
           <span>{resort.n_lifts} Lifts</span>
         </Link>

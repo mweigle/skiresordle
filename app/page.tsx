@@ -1,14 +1,19 @@
 import ResortSearch from "@/components/resort_search";
-import { getResorts } from "@/lib/db";
-import { connection } from "next/server";
+import { initialResorts } from "@/lib/db";
 
-export default async function Home() {
+export default function Home() {
   // TODO: remaining icons
-  // TODO: front page
-  // TODO: "reveal names" feature, zumindest zum debuggen
+  // TODO: lookups besser machen
+  // TODO: local storage
+  // TODO: list <-> map interaction
+  //  - zoom deeper into a focussed lift.
+  //  - remove focus thickness when mouse leaves
+  //  - make relation work both ways
   // TODO: einstellen, welche lift-arten man sehen will? nice to have
-  await connection();
-  const resorts = getResorts();
+  
+  // NOTE: do not use "await connection();" here because the front page data is static
+  //       and does not need to get re-fetched per request
+  const resorts = initialResorts();
 
   return <ResortSearch initialResorts={resorts} />
 }
