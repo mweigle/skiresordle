@@ -1,5 +1,6 @@
 import { FeatureCollection, Lift } from "@/lib/lift_data";
 import { defaults as defaultControls } from "ol/control/defaults";
+import { Coordinate } from "ol/coordinate";
 import { Extent } from "ol/extent";
 import Feature, { FeatureLike } from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
@@ -33,7 +34,7 @@ export class GameMap {
 
   constructor(
     target: HTMLElement,
-    lifts: FeatureCollection<GeoJSON.Feature<LiftGeometry, Lift>>
+    lifts: FeatureCollection<GeoJSON.Feature<LiftGeometry, Lift>>,
   ) {
     const liftSource = new VectorSource({
       features: new GeoJSON().readFeatures(lifts, {
@@ -66,6 +67,7 @@ export class GameMap {
     });
 
     map.on("pointermove", this.handlePointerMove);
+    map.on("click", this.handleClick);
 
     this.map = map;
     this.liftSource = liftSource;
@@ -75,6 +77,7 @@ export class GameMap {
 
   dispose() {
     this.map.un("pointermove", this.handlePointerMove);
+    this.map.un("click", this.handleClick);
     this.map.setTarget(undefined);
     this.hoveredFeature = null;
   }
@@ -155,17 +158,12 @@ export class GameMap {
     return style;
   }
 
-  handlePointerMove = (event: MapBrowserEvent) => {
-    if (event.dragging) {
-      return;
-    }
-
+  getFeatureAtCoordinate(coord: Coordinate): Feature | null {
     const resolution = this.map.getView().getResolution();
     if (!resolution) {
-      return;
+      return null;
     }
-
-    const [x, y] = event.coordinate;
+    const [x, y] = coord;
     const tolerance = 10.5 * resolution;
     const toleranceSquared = tolerance * tolerance;
     const candidates = this.liftSource.getFeaturesInExtent([
@@ -175,7 +173,7 @@ export class GameMap {
       y + tolerance,
     ]);
 
-    let feature: Feature | null = null;
+    let feature = null;
     let closestDistanceSquared = toleranceSquared;
     for (const candidate of candidates) {
       const geometry = candidate.getGeometry();
@@ -189,7 +187,15 @@ export class GameMap {
         closestDistanceSquared = distanceSquared;
       }
     }
+    return feature;
+  }
 
+  handlePointerMove = (event: MapBrowserEvent) => {
+    if (event.dragging) {
+      return;
+    }
+
+    const feature = this.getFeatureAtCoordinate(event.coordinate);
     if (feature === this.hoveredFeature) {
       return;
     }
@@ -197,5 +203,17 @@ export class GameMap {
     this.hoveredFeature?.set(HOVERED, false);
     feature?.set(HOVERED, true);
     this.hoveredFeature = feature;
+  }
+
+  handleClick = (event: MapBrowserEvent) => {
+    const feature = this.getFeatureAtCoordinate(event.coordinate);
+    if (feature) {
+      const extent = feature.getGeometry()?.getExtent();
+      if (extent) {
+        this.setFocus(extent, 16);
+      }
+      // const id = feature.getId();
+      // this.clickCallback(id);
+    }
   }
 }

@@ -77,10 +77,10 @@ export default function ResortSearch({ initialResorts }: ResortSearchProps) {
     return `${resort.n_lifts} Lifts`;
   }
 
-  return <main className="flex flex-col items-center">
+  return <main className="flex flex-col items-center p-3">
     <input type="text" name="Ski Resort" placeholder="Ski Resort Search" value={resortName} onChange={onUpdate} onKeyDown={onEnter} autoComplete="off"
-      className="w-1/2 mt-10 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
-    <ul className="w-1/2 flex flex-col">
+      className="w-full md:w-3/4 lg:w-1/2 mt-7 p-3 outline-none border-2 rounded-md border-foreground focus:border-selection" />
+    <ul className="w-full md:w-3/4 lg:w-1/2 flex flex-col">
       {filteredResorts.map(resort => <li key={resort.id}>
         <Link href={resortLink(resort.id)} className="flex justify-between p-3 border-2 rounded-md border-background hover:border-selection">
           <span>{resort.name}</span>
